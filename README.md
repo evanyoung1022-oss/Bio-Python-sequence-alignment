@@ -2,7 +2,8 @@
 
 A Python pipeline that downloads the hemoglobin beta protein for six mammals from NCBI, aligns them, and measures which positions evolution has kept unchanged, then checks whether the most conserved positions are the ones that matter for the protein's function.
 
-CHART-GOES-HERE
+<img width="907" height="461" alt="image" src="https://github.com/user-attachments/assets/da054eb5-1845-46fb-ac28-12bbd7db6731" />
+
 
 *Each bar is one position in the protein. Height = fraction of species with the same amino acid there (1.0 = identical in all six). Orange lines mark known functional sites.*
 
