@@ -2,7 +2,8 @@
 
 A Python pipeline that downloads the hemoglobin beta protein for six mammals from NCBI, aligns them, and measures which positions evolution has kept unchanged.
 
-CHART-GOES-HERE
+<img width="1460" height="482" alt="image" src="https://github.com/user-attachments/assets/3f9de2c2-4a85-4bb1-95f7-4e7143924411" />
+
 
 ## Key findings
 
