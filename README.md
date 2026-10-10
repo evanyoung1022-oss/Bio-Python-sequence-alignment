@@ -21,6 +21,7 @@ A Python pipeline that downloads the hemoglobin beta protein for six mammals fro
 3. **Align**: multiple sequence alignment of all six species with FAMSA.
 4. **Score**: for each alignment column, the fraction of species that share the most common amino acid (gaps count as disagreement).
 5. **Visualize**: plot conservation along the protein and mark known functional sites in human numbering.
+6. **Tree**: build a neighbor-joining tree from BLOSUM62 protein distances (`Bio.Phylo`) and draw it as an interactive Plotly figure.
 
 ## Scripts
 
@@ -32,6 +33,9 @@ A Python pipeline that downloads the hemoglobin beta protein for six mammals fro
 | `fetch_species.py` | Searches NCBI for HBB in each species and saves them to `data/hbb_species.fasta` |
 | `align_all.py` | Aligns all species with FAMSA (`pyfamsa`) and saves `data/hbb_aligned.fasta` |
 | `conservation.py` | Scores each position, marks the key sites, and saves `conservation.png` |
+| `tree.py` | Builds a phylogenetic tree from the alignment, saves `data/hbb_tree.nwk` and an interactive `tree.html` |
+| `app.py` | Interactive web app (Streamlit): any gene, up to 34 species, tree, conservation chart and alignment |
+| `gene_list.py`, `species_list.py` | The gene suggestions and species (with common names and groups) used by the app |
 
 ## How to run it
 
@@ -43,18 +47,33 @@ pip install -r requirements.txt
 python fetch_species.py     # download sequences (set your email in the script first)
 python align_all.py         # align them
 python conservation.py      # score and plot
+python tree.py              # build the tree (open tree.html in a browser)
 ```
+
+### Interactive app
+
+```bash
+streamlit run app.py
+```
+
+- **Gene search with suggestions**: type `a` to see genes starting with A, or a word like `insulin` to search by name. Genes that aren't in the suggestion list can still be searched.
+- **34 species** across primates, rodents, hoofed mammals, whales, carnivores, birds, reptiles, amphibians and fish, with one-click groups (Primates, All mammals, All vertebrates).
+- **Interactive family tree**: hover a species for its percent identity and distance, zoom and pan, filter by group, switch between neighbor joining and UPGMA, and download the tree as Newick.
+- **Conservation chart** where hovering a position shows which amino acids each species has, plus the full alignment and links to every NCBI record.
+
+To use it on Streamlit Community Cloud, add `NCBI_EMAIL` (and optionally `NCBI_API_KEY`, which makes NCBI downloads about 3x faster) to the app's secrets.
 
 NCBI asks every user of its API to provide an email address, so set `Entrez.email` in `fetch.py` and `fetch_species.py` to your own.
 
 ## Notes and limitations
 
-- Species were chosen where NCBI labels the gene "HBB". Some animals (for example dog and chicken) use different gene names and were skipped by the search.
+- Species were chosen where NCBI labels the gene "HBB". Some animals (for example dog and chicken) use different gene names and were skipped by the search. The app handles this with a second search by protein name, and marks those species as "found by protein name" so they can be double-checked.
+- A tree built from one gene shows that gene's history, which doesn't always match the species' history. Short, highly conserved proteins like hemoglobin carry little signal, so some branches (for example horse grouping with the primates) are not reliable.
 - Positions are numbered from the first methionine (M) in the code. Biologists traditionally skip it, so His63 is position 64 in the code.
 
 ## Tools
 
-Python, Biopython (SeqIO, Entrez, PairwiseAligner, AlignIO), NCBI E-utilities, FAMSA, matplotlib, Git
+Python, Biopython (SeqIO, Entrez, PairwiseAligner, AlignIO, Phylo), NCBI E-utilities, FAMSA, matplotlib, Plotly, Streamlit, Git
 
 ## About
 

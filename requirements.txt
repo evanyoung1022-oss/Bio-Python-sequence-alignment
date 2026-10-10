@@ -1,4 +1,6 @@
 biopython
 pyfamsa
 matplotlib
-streamlit
+plotly
+streamlit>=1.50
+streamlit-searchbox
