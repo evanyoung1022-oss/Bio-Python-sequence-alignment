@@ -8,7 +8,9 @@ from Bio import Entrez, SeqIO
 from pyfamsa import Aligner, Sequence
 
 from gene_list import COMMON_GENES
+from species_bios import bio, icon
 from species_list import CLASSIC_SIX, MAMMAL_GROUPS, SPECIES, label
+from structure3d import show_structure
 from tree import build_tree, percent_identity, to_newick, tree_figure
 
 st.set_page_config(page_title="Protein Conservation Explorer", page_icon="🧬", layout="wide")
@@ -51,12 +53,44 @@ def protein_name(description):
     return name.strip()
 
 
-def find_proteins(gene, species_list, progress):
-    """Find the protein for one gene in each species.
+@st.cache_data(show_spinner=False, ttl=7 * 24 * 3600)
+def find_gene_id(gene, species):
+    """NCBI Gene ID for a gene symbol in one species, or None."""
+    search = Entrez.esearch(db="gene", term=gene + '[Gene Name] AND "' + species + '"[Organism]', retmax=1)
+    result = Entrez.read(search)
+    search.close()
+    return result["IdList"][0] if result["IdList"] else None
 
-    First searches by gene name. Some species use a different gene name (mouse
-    hemoglobin beta is "Hbb-bs"), so any species that is still missing gets a
-    second search by the protein's name, taken from a species that was found.
+
+@st.cache_data(show_spinner=False, ttl=7 * 24 * 3600)
+def ortholog_accession(gene_id, species):
+    """NCBI keeps lists of matching genes across species (orthologs). Find the one for this
+    species and return the accession of its first RefSeq protein, or None."""
+    term = "ortholog_gene_" + gene_id + '[group] AND "' + species + '"[Organism]'
+    search = Entrez.esearch(db="gene", term=term, retmax=1)
+    result = Entrez.read(search)
+    search.close()
+    if not result["IdList"]:
+        return None
+    link = Entrez.elink(dbfrom="gene", db="protein", id=result["IdList"][0], linkname="gene_protein_refseq")
+    links = Entrez.read(link)
+    link.close()
+    protein_ids = [item["Id"] for linkset in links for db in linkset.get("LinkSetDb", []) for item in db["Link"]]
+    if not protein_ids:
+        return None
+    handle = Entrez.efetch(db="protein", id=protein_ids[0], rettype="acc", retmode="text")
+    accession = handle.read().strip()
+    handle.close()
+    return accession or None
+
+
+def find_proteins(gene, species_list, progress):
+    """Find the protein for one gene in each species, trying three ways:
+
+    1. By gene name (fast, works for most species).
+    2. Through NCBI's ortholog list, which links the same gene across species even when
+       its name differs (mouse hemoglobin beta is "Hbb-bs").
+    3. By the protein's name, taken from a species that was already found.
     """
     hits, how = {}, {}
     steps = len(species_list) + 1
@@ -66,6 +100,17 @@ def find_proteins(gene, species_list, progress):
         accession = search_accession(term)
         if accession:
             hits[species], how[species] = accession, "gene name"
+
+    missing = [s for s in species_list if s not in hits]
+    if hits and missing:
+        reference = "Homo sapiens" if "Homo sapiens" in hits else next(iter(hits))
+        gene_id = find_gene_id(gene, reference)
+        if gene_id:
+            for species in missing:
+                progress.progress(len(hits) / steps, text="Checking NCBI orthologs: " + label(species))
+                accession = ortholog_accession(gene_id, species)
+                if accession:
+                    hits[species], how[species] = accession, "ortholog"
 
     missing = [s for s in species_list if s not in hits]
     if hits and missing:
@@ -138,6 +183,7 @@ st.title("🧬 Protein Conservation Explorer")
 st.write("Pick a gene and some species. The app downloads the protein for each species from NCBI, "
          "lines them up, shows which positions evolution kept the same, and builds a family tree "
          "from how similar the proteins are.")
+
 
 def suggest_genes(term):
     """Dropdown suggestions as you type: genes whose symbol starts with what you typed come
@@ -222,8 +268,8 @@ if "results" in st.session_state:
     col3.metric("Identical in all", str(scores.count(1.0)) + " ("
                 + str(round(100 * scores.count(1.0) / len(scores))) + "%)")
 
-    tree_tab, conservation_tab, alignment_tab, sources_tab = st.tabs(
-        ["🌳 Family tree", "📊 Conservation", "🧬 Alignment", "📄 Sources"])
+    tree_tab, conservation_tab, structure_tab, species_tab, alignment_tab, sources_tab = st.tabs(
+        ["🌳 Family tree", "📊 Conservation", "🧊 3D model", "🐾 Species", "🧬 Alignment", "📄 Sources"])
 
     with tree_tab:
         if len(aligned) < 3:
@@ -251,7 +297,35 @@ if "results" in st.session_state:
         st.plotly_chart(conservation_figure(gene_run, scores, consensus, aligned),
                         width="stretch")
         st.caption("Dark bars are identical in every species. Hover a bar to see which amino acids "
-                   "each species has there.")
+                   "each species has there. To save the chart as a picture, hover it and click the "
+                   "camera icon in the top right.")
+        csv = "position,most_common,fraction_agree\n" + "".join(
+            str(i + 1) + "," + letter + "," + str(round(s, 3)) + "\n"
+            for i, (s, letter) in enumerate(zip(scores, consensus)))
+        st.download_button("Download scores (CSV)", csv,
+                           file_name=gene_run.lower() + "_conservation.csv", mime="text/csv")
+
+    with structure_tab:
+        show_structure(gene_run, aligned, scores)
+
+    with species_tab:
+        sequences = dict(aligned)
+        reference_name = "Homo_sapiens" if "Homo_sapiens" in sequences else aligned[0][0]
+        st.caption("How each species relates to " + label(reference_name) + ". Rough split times are "
+                   "in millions of years ago (mya).")
+        for f in found:
+            name = f["species"].replace(" ", "_")
+            with st.expander(icon(name) + "  " + label(name) + " (" + f["species"] + ")"):
+                st.write(bio(f["species"], SPECIES.get(f["species"], (None, None))[1]))
+                others = [other for other in sequences if other != name]
+                closest = max(others, key=lambda other: percent_identity(sequences[name], sequences[other]))
+                closest_identity = percent_identity(sequences[name], sequences[closest])
+                if name != reference_name:
+                    identity = percent_identity(sequences[name], sequences[reference_name])
+                    st.write("**" + gene_run + " is " + str(round(identity, 1)) + "% identical to "
+                             + label(reference_name) + ".**")
+                st.write("Most similar in this run: " + label(closest) + " ("
+                         + str(round(closest_identity, 1)) + "% identical).")
 
     with alignment_tab:
         width = max(len(label(name)) for name, _ in aligned) + 2
@@ -275,7 +349,7 @@ if "results" in st.session_state:
             column_config={"NCBI record": st.column_config.LinkColumn(display_text=r"protein/(.*)")},
             hide_index=True, width="stretch",
         )
-        if any(f["found_by"] == "protein name" for f in found):
-            st.caption("'Protein name' means that species uses a different gene name, so it was "
-                       "matched by the protein's name instead. Check those records if a result "
-                       "looks odd.")
+        if any(f["found_by"] != "gene name" for f in found):
+            st.caption("'Ortholog' means that species uses a different gene name, so it was matched "
+                       "through NCBI's list of the same gene across species. 'Protein name' means it "
+                       "was matched by the protein's name. Check those records if a result looks odd.")
