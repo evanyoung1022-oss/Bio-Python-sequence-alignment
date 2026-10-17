@@ -1,12 +1,13 @@
 # 🧬 Protein Conservation Explorer
 
-**Live app: YOUR-APP-LINK**
+[**Live app: YOUR-APP-LINK**](https://hemoglobin-explorer.streamlit.app/)
 
 A Python and Biopython project that downloads the same protein from many species, lines them up, and shows which parts evolution has kept the same, as a chart, a family tree and a spinnable 3D model.
 
 It started as a set of scripts studying hemoglobin beta across six mammals and grew into an interactive web app that works for almost any gene.
 
-CHART-GOES-HERE
+<img width="1335" height="801" alt="image" src="https://github.com/user-attachments/assets/0f76edbe-9a8d-42c8-bed4-fefc849e5089" />
+
 
 ## What the app does
 
