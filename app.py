@@ -5,8 +5,8 @@ import plotly.graph_objects as go
 import streamlit as st
 from streamlit_searchbox import st_searchbox
 from Bio import Entrez, SeqIO
-from pyfamsa import Aligner, Sequence
 
+from analysis import align, conservation, protein_name
 from gene_list import COMMON_GENES
 from mushrooms import mushroom_page
 from species_bios import bio, icon
@@ -47,14 +47,6 @@ def fetch_records(accessions):
     records = {r.id: (r.description, str(r.seq)) for r in SeqIO.parse(handle, "fasta")}
     handle.close()
     return records
-
-
-def protein_name(description):
-    """'NP_000509.1 hemoglobin subunit beta [Homo sapiens]' -> 'hemoglobin subunit beta'."""
-    name = description.split(" ", 1)[1].rsplit("[", 1)[0]
-    name = re.sub(r"^(PREDICTED|LOW QUALITY PROTEIN):\s*", "", name.strip())
-    name = re.sub(r"\s+isoform\s+\S+$", "", name)
-    return name.strip()
 
 
 @st.cache_data(show_spinner=False, ttl=7 * 24 * 3600)
@@ -140,24 +132,7 @@ def find_proteins(gene, species_list, progress):
     return found
 
 
-# ---------- Analysis ----------
-
-def align(sequences):
-    """Multiple alignment with FAMSA. Takes and returns a list of (name, sequence)."""
-    famsa_input = [Sequence(name.encode(), seq.encode()) for name, seq in sequences]
-    result = Aligner().align(famsa_input)
-    return [(s.id.decode(), s.sequence.decode()) for s in result]
-
-
-def conservation(aligned):
-    """For each column, the fraction of species sharing the most common amino acid."""
-    scores, consensus = [], []
-    for column in zip(*[seq for _, seq in aligned]):
-        letter, count = Counter(column).most_common(1)[0]
-        scores.append(0 if letter == "-" else count / len(aligned))
-        consensus.append(letter)
-    return scores, consensus
-
+# ---------- Charts ----------
 
 def conservation_figure(gene, scores, consensus, aligned):
     n = len(aligned)

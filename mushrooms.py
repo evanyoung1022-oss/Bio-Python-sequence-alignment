@@ -1,44 +1,46 @@
 """The Mushroom enzymes tab: compare one fungal enzyme across mushrooms and other fungi."""
 import streamlit as st
 
+from analysis import similarity
+from databases import enzyme_query, is_ec_number, is_the_enzyme, ncbi_exclusions, plain_name, search_uniprot
 from species_list import FUNGI, label
 from structure3d import show_reference_structure
 from tree import build_tree, percent_identity, to_newick, tree_figure
 
-# Enzyme name -> (words to search for in NCBI protein titles, what it does)
+# Enzyme name -> (protein name to search for, enzyme (EC) number, what it does)
 ENZYMES = {
     "Laccase": (
-        "laccase",
+        "laccase", "1.10.3.2",
         "A copper enzyme that oxidizes lignin, the tough glue in wood. Laccases are used to "
         "remove dyes from textile wastewater, break down pollutants and bleach pulp.",
     ),
     "Manganese peroxidase": (
-        "manganese peroxidase",
+        "manganese peroxidase", "1.11.1.13",
         "Uses hydrogen peroxide and manganese to attack lignin. A signature enzyme of white-rot "
         "fungi, the main organisms on Earth that can fully break down wood.",
     ),
     "Lignin peroxidase": (
-        "lignin peroxidase",
+        "lignin peroxidase", "1.11.1.14",
         "A powerful peroxidase that can split lignin's strongest bonds. First discovered in "
         "Phanerochaete chrysosporium in the 1980s.",
     ),
     "Tyrosinase": (
-        "tyrosinase",
+        "tyrosinase", "1.14.18.1",
         "Turns tyrosine into melanin pigments. It is why sliced button mushrooms turn brown, "
         "and it is studied for skin-lightening and food-browning control.",
     ),
     "Cellobiohydrolase": (
-        "cellobiohydrolase",
+        "cellobiohydrolase", "3.2.1.91",
         "Chews cellulose chains into the sugar cellobiose. Fungal cellobiohydrolases are key "
         "ingredients in enzyme mixes that turn plant waste into biofuel.",
     ),
     "Chitin synthase": (
-        "chitin synthase",
+        "chitin synthase", "2.4.1.16",
         "Builds chitin, the main material of fungal cell walls. Because human cells don't make "
         "chitin, it is a target for antifungal drugs.",
     ),
     "Actin (control)": (
-        "actin",
+        "actin", "",
         "A skeleton protein found in every fungus. It is extremely conserved, so it is a good "
         "baseline to compare the enzymes against.",
     ),
@@ -95,13 +97,44 @@ DEFAULT_FUNGI = ["Agaricus bisporus", "Pleurotus ostreatus", "Lentinula edodes",
                  "Trametes versicolor", "Ganoderma lucidum", "Coprinopsis cinerea"]
 
 
-def find_enzyme(term, species_list, search_accession, fetch_records, progress):
-    """Find one protein per species whose NCBI title contains the enzyme name.
-    Tries RefSeq first, then all of GenBank, and skips partial sequences."""
-    hits, how = {}, {}
+def pick_copies(candidates):
+    """Fungi often carry several copies of an enzyme, and different copies in two species can
+    be less alike than the same copy is. So pick, for each species, the candidate most like
+    one reference: the first curator-reviewed match, or else the first species' best match.
+    candidates: {species: [UniProt matches, best first]}. Returns {species: match}."""
+    tops = [matches[0] for matches in candidates.values()]
+    reference = next((m for m in tops if m["reviewed"]), tops[0])
+    return {species: max(matches, key=lambda m: similarity(m["sequence"], reference["sequence"]))
+            for species, matches in candidates.items()}
+
+
+def find_enzyme(term, ec, species_list, search_accession, fetch_records, progress):
+    """Find one full-length protein per species. Tries UniProt first (by enzyme number or
+    protein name), then NCBI titles: RefSeq, then all of GenBank."""
+    candidates = {}
     for i, species in enumerate(species_list):
-        progress.progress(i / (len(species_list) + 1), text="Searching NCBI: " + label(species))
-        base = '"' + term + '"[Title] AND "' + species + '"[Organism] NOT partial[Title]'
+        progress.progress(i / (len(species_list) + 1), text="Searching UniProt: " + label(species))
+        matches = [m for m in search_uniprot(enzyme_query(term, ec, species), size=25, best_annotated=True)
+                   if is_the_enzyme(m, term, ec)]
+        matches.sort(key=lambda m: not plain_name(m["name"], term))  # stable: keeps annotation order
+        if matches:
+            candidates[species] = matches[:5]
+
+    found, hits, how = {}, {}, {}
+    if candidates:
+        progress.progress(len(species_list) / (len(species_list) + 1), text="Picking matching copies")
+        for species, match in pick_copies(candidates).items():
+            found[species] = {"species": species, "accession": match["accession"],
+                              "description": match["accession"] + " " + match["name"] + " [" + species + "]",
+                              "sequence": match["sequence"],
+                              "found_in": "UniProt (reviewed)" if match["reviewed"] else "UniProt"}
+
+    for species in species_list:
+        if species in found or not term:
+            continue  # NCBI titles need a name; an EC number alone only works in UniProt
+        progress.progress(len(species_list) / (len(species_list) + 1), text="Searching NCBI: " + label(species))
+        base = ('"' + term + '"[Title] AND "' + species + '"[Organism] NOT partial[Title]'
+                + ncbi_exclusions(term))
         accession = search_accession(base + " AND refseq[filter]")
         if accession:
             hits[species], how[species] = accession, "RefSeq"
@@ -113,14 +146,12 @@ def find_enzyme(term, species_list, search_accession, fetch_records, progress):
     progress.progress(len(species_list) / (len(species_list) + 1), text="Downloading sequences")
     records = fetch_records(tuple(sorted(hits.values()))) if hits else {}
     progress.empty()
-    found = []
-    for species in species_list:
-        accession = hits.get(species)
+    for species, accession in hits.items():
         if accession in records:
             description, seq = records[accession]
-            found.append({"species": species, "accession": accession, "description": description,
-                          "sequence": seq, "found_in": how[species]})
-    return found
+            found[species] = {"species": species, "accession": accession, "description": description,
+                              "sequence": seq, "found_in": how[species]}
+    return [found[s] for s in species_list if s in found]  # keep the order the user picked
 
 
 def mushroom_page(search_accession, fetch_records, align, conservation, conservation_figure):
@@ -129,35 +160,38 @@ def mushroom_page(search_accession, fetch_records, align, conservation, conserva
              "down wood, which makes them useful for biofuels, bioremediation and industry.")
 
     left, right = st.columns([1, 2])
-    enzyme = left.selectbox("Enzyme", list(ENZYMES) + ["Other (type a name)"], key="mush_enzyme")
-    if enzyme == "Other (type a name)":
-        term = left.text_input("Enzyme or protein name", value="glucose oxidase", key="mush_custom").strip()
-        enzyme_name = term
+    enzyme = left.selectbox("Enzyme", list(ENZYMES) + ["Other (type a name or EC number)"], key="mush_enzyme")
+    if enzyme.startswith("Other"):
+        typed = left.text_input("Enzyme name or EC number", value="glucose oxidase", key="mush_custom",
+                                help="An EC number like 1.1.3.4 searches UniProt only. A name searches "
+                                     "UniProt, then NCBI.").strip()
+        term, ec = ("", typed) if is_ec_number(typed) else (typed, "")
+        enzyme_name = typed if term else "EC " + typed
     else:
-        term = ENZYMES[enzyme][0]
+        term, ec, about = ENZYMES[enzyme]
         enzyme_name = enzyme
-        left.caption(ENZYMES[enzyme][1])
+        left.caption(about + (" (EC " + ec + ")" if ec else ""))
     chosen = right.multiselect(
         "Fungi", list(FUNGI), default=DEFAULT_FUNGI, key="mush_species",
         format_func=lambda s: FUNGI[s][0] + " (" + s + ")",
     )
 
-    if st.button("Run", type="primary", key="mush_run", disabled=not term or len(chosen) < 2):
+    if st.button("Run", type="primary", key="mush_run", disabled=not (term or ec) or len(chosen) < 2):
         try:
-            found = find_enzyme(term, chosen, search_accession, fetch_records,
+            found = find_enzyme(term, ec, chosen, search_accession, fetch_records,
                                 st.progress(0.0, text="Starting"))
         except Exception as error:
-            st.error("Couldn't reach NCBI (" + str(error) + "). Wait a few seconds and try again.")
+            st.error("Couldn't reach UniProt or NCBI (" + str(error) + "). Wait a few seconds and try again.")
             return
         for species in chosen:
             if species not in [f["species"] for f in found]:
-                st.warning(label(species) + ": no " + enzyme_name + " found in NCBI, skipped")
+                st.warning(label(species) + ": no " + enzyme_name + " found in UniProt or NCBI, skipped")
         if len(found) < 2:
             st.error("Need at least 2 fungi with a match to compare.")
             return
         with st.spinner("Aligning " + str(len(found)) + " sequences"):
             aligned = align([(f["species"].replace(" ", "_"), f["sequence"]) for f in found])
-        st.session_state.mushroom_results = {"enzyme": enzyme_name, "term": term,
+        st.session_state.mushroom_results = {"enzyme": enzyme_name, "term": term or ec,
                                              "found": found, "aligned": aligned}
 
     if "mushroom_results" not in st.session_state:
@@ -205,10 +239,14 @@ def mushroom_page(search_accession, fetch_records, align, conservation, conserva
 
     with structure_tab:
         reference = st.selectbox("Show the 3D model for", names, format_func=label, key="mush_3d")
+        record = next(f for f in found if f["species"].replace(" ", "_") == reference)
+        from_uniprot = record["found_in"].startswith("UniProt")
         show_reference_structure(
             aligned, scores, reference,
-            'protein_name:"' + term_run + '" AND organism_name:"' + reference.replace("_", " ") + '"',
-            enzyme_run.lower() + " from " + label(reference))
+            ("ec:" + term_run if is_ec_number(term_run) else 'protein_name:"' + term_run + '"')
+            + ' AND organism_name:"' + reference.replace("_", " ") + '"',
+            enzyme_run.lower() + " from " + label(reference),
+            accession=record["accession"] if from_uniprot else None)
 
     with fungi_tab:
         for f in found:
@@ -234,13 +272,18 @@ def mushroom_page(search_accession, fetch_records, align, conservation, conserva
         st.dataframe(
             [{"Fungus": label(f["species"]),
               "Scientific name": f["species"],
-              "NCBI record": "https://www.ncbi.nlm.nih.gov/protein/" + f["accession"],
+              "Record": ("https://www.uniprot.org/uniprotkb/" + f["accession"] + "/entry"
+                         if f["found_in"].startswith("UniProt")
+                         else "https://www.ncbi.nlm.nih.gov/protein/" + f["accession"]),
               "Protein": f["description"].split(" ", 1)[1].rsplit("[", 1)[0].strip(),
               "Length": len(f["sequence"]),
               "Found in": f["found_in"]} for f in found],
-            column_config={"NCBI record": st.column_config.LinkColumn(display_text=r"protein/(.*)")},
+            column_config={"Record": st.column_config.LinkColumn(
+                display_text=r"(?:protein|uniprotkb)/([^/]+)")},
             hide_index=True, width="stretch",
         )
         st.caption("Fungi often carry several copies of an enzyme (oyster mushrooms have many "
-                   "laccases), and the app compares the first match NCBI returns. 'GenBank' means "
-                   "there was no curated RefSeq match, so the record came from a submitted study.")
+                   "laccases), and the app compares the best-annotated match. UniProt is searched "
+                   "first, by enzyme number and name; 'reviewed' entries were checked by its curators. "
+                   "When UniProt has nothing, the app searches NCBI titles: 'RefSeq' is NCBI's curated "
+                   "set and 'GenBank' means the record came straight from a submitted study.")
