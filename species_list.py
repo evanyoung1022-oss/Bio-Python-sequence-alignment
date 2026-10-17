@@ -46,6 +46,32 @@ SPECIES = {
     "Salmo salar": ("Atlantic salmon", "Amphibians & fish"),
 }
 
+# Fungi for the Mushroom enzymes tab (kept separate so "All vertebrates" stays vertebrates)
+FUNGI = {
+    # Gilled mushrooms (Agaricales)
+    "Agaricus bisporus": ("Button mushroom", "Gilled mushrooms"),
+    "Pleurotus ostreatus": ("Oyster mushroom", "Gilled mushrooms"),
+    "Lentinula edodes": ("Shiitake", "Gilled mushrooms"),
+    "Flammulina velutipes": ("Enoki", "Gilled mushrooms"),
+    "Psilocybe cubensis": ("Psilocybe cubensis", "Gilled mushrooms"),
+    "Coprinopsis cinerea": ("Inky cap", "Gilled mushrooms"),
+    "Schizophyllum commune": ("Split gill", "Gilled mushrooms"),
+    "Laccaria bicolor": ("Bicolored deceiver", "Gilled mushrooms"),
+    "Amanita muscaria": ("Fly agaric", "Gilled mushrooms"),
+    # Bracket and wood-rot fungi (Polyporales)
+    "Trametes versicolor": ("Turkey tail", "Bracket fungi"),
+    "Ganoderma lucidum": ("Reishi", "Bracket fungi"),
+    "Phanerochaete chrysosporium": ("White-rot crust fungus", "Bracket fungi"),
+    # Other mushrooms
+    "Hericium erinaceus": ("Lion's mane", "Other mushrooms"),
+    "Serpula lacrymans": ("Dry rot fungus", "Other mushrooms"),
+    # Molds and yeasts (Ascomycota), for comparison
+    "Cordyceps militaris": ("Cordyceps", "Molds & yeasts"),
+    "Aspergillus niger": ("Black mold", "Molds & yeasts"),
+    "Neurospora crassa": ("Red bread mold", "Molds & yeasts"),
+    "Saccharomyces cerevisiae": ("Baker's yeast", "Molds & yeasts"),
+}
+
 MAMMAL_GROUPS = {"Primates", "Rodents & rabbits", "Hoofed mammals",
                  "Whales & dolphins", "Carnivores", "Other mammals"}
 
@@ -62,16 +88,24 @@ GROUP_COLORS = {
     "Other mammals": "#6b7f3a",
     "Birds & reptiles": "#e0a800",
     "Amphibians & fish": "#4a6fa5",
+    "Gilled mushrooms": "#b5651d",
+    "Bracket fungi": "#7a9a3a",
+    "Other mushrooms": "#c2577a",
+    "Molds & yeasts": "#5b7db1",
     "Other": "#888888",
 }
+
+
+ALL_NAMES = {**SPECIES, **FUNGI}
 
 
 def label(name):
     """'Homo_sapiens' or 'Homo sapiens' -> 'Human'."""
     scientific = name.replace("_", " ")
-    return SPECIES.get(scientific, (scientific, "Other"))[0]
+    return ALL_NAMES.get(scientific, (scientific, "Other"))[0]
 
 
 def group(name):
     scientific = name.replace("_", " ")
-    return SPECIES.get(scientific, (scientific, "Other"))[1]
+    return ALL_NAMES.get(scientific, (scientific, "Other"))[1]
+

@@ -38,9 +38,17 @@ def pdb_structure(pdb_id):
 def alphafold_structure(gene):
     """Find the reviewed human UniProt entry for a gene and download its AlphaFold model.
     Returns (UniProt accession, PDB text), or None if there isn't one."""
-    query = urllib.parse.quote("gene_exact:" + gene + " AND organism_id:9606 AND reviewed:true")
-    found = json.loads(download("https://rest.uniprot.org/uniprotkb/search?query=" + query
-                                + "&fields=accession&format=json&size=1"))
+    return alphafold_by_query("gene_exact:" + gene + " AND organism_id:9606 AND reviewed:true")
+
+
+@st.cache_data(show_spinner=False, ttl=7 * 24 * 3600)
+def alphafold_by_query(query):
+    """Run a UniProt search, take the best-annotated hit, and download its AlphaFold model.
+    Returns (UniProt accession, PDB text), or None if there isn't one."""
+    found = json.loads(download("https://rest.uniprot.org/uniprotkb/search?query="
+                                + urllib.parse.quote(query)
+                                + "&fields=accession&format=json&size=1&sort="
+                                + urllib.parse.quote("annotation_score desc")))
     if not found["results"]:
         return None
     accession = found["results"][0]["primaryAccession"]
@@ -58,6 +66,13 @@ def chain_residues(pdb_text, chain):
     structure = PDBParser(QUIET=True).get_structure("model", io.StringIO(pdb_text))
     return [(residue.id[1], seq1(residue.get_resname()))
             for residue in structure[0][chain] if residue.id[0] == " "]  # skip heme and water
+
+
+def match_identity(seq, residues, numbers):
+    """Percent of matched positions where the sequence and the 3D model have the same letter."""
+    letters = dict(residues)
+    same = sum(1 for i, number in numbers.items() if seq[i] == letters[number])
+    return 100 * same / max(len(numbers), 1)
 
 
 def residue_numbers(human_seq, residues):
@@ -159,3 +174,36 @@ def show_structure(gene, aligned, scores):
                "light blue = mostly the same, orange = variable, gray = not compared. "
                "Drag to rotate, scroll to zoom.")
     st.link_button(*link)
+
+
+def show_reference_structure(aligned, scores, reference, uniprot_query, what):
+    """3D model for any species: the AlphaFold model of the best UniProt match for
+    uniprot_query, colored by the alignment row of `reference`. `what` names the
+    protein in the caption, like "laccase from Turkey tail"."""
+    reference_aligned = dict(aligned)[reference]
+    try:
+        with st.spinner("Downloading the 3D structure"):
+            model = alphafold_by_query(uniprot_query)
+    except Exception as error:
+        st.warning("Couldn't download the 3D structure right now (" + str(error) + "). Try again in a bit.")
+        return
+    if model is None:
+        st.info("No AlphaFold model found for " + what + ". Try another species.")
+        return
+    accession, pdb_text = model
+
+    sequence = reference_aligned.replace("-", "")
+    residues = chain_residues(pdb_text, "A")
+    identity = match_identity(sequence, residues, residue_numbers(sequence, residues))
+
+    spin = st.toggle("Spin", value=True, key="spin_" + reference)
+    view = structure_view(pdb_text, ["A"], {}, reference_aligned, scores, spin)
+    show_html(view._make_html(), 540)
+    st.caption("AlphaFold's predicted structure of " + what + " (UniProt " + accession + "), colored "
+               "by your alignment: dark blue = identical in every species, light blue = mostly the "
+               "same, orange = variable, gray = not compared. Drag to rotate, scroll to zoom.")
+    if identity < 90:
+        st.caption("Heads up: this model is only " + str(round(identity)) + "% identical to the "
+                   "sequence in your alignment, so it is probably a different copy of the enzyme "
+                   "(fungi often carry several). Colors are matched as closely as possible.")
+    st.link_button("Open " + accession + " in AlphaFold", "https://alphafold.ebi.ac.uk/entry/" + accession)
