@@ -35,7 +35,8 @@ def build_tree(aligned, method="nj"):
         tree = constructor.upgma(distances)
     else:
         tree = constructor.nj(distances)
-        tree.root_at_midpoint()
+        if any(d > 0 for row in distances.matrix for d in row):
+            tree.root_at_midpoint()  # crashes when every sequence is identical (all distances 0)
     tree.ladderize()
     for clade in tree.find_clades():
         if clade.branch_length is not None and clade.branch_length < 0:
