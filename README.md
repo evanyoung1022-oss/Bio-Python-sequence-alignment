@@ -23,7 +23,7 @@ The app has three sections:
 
 ### 🔬 Structure viewer
 
-Search all of UniProt by name (`laccase`), gene (`TP53`), enzyme number (`1.10.3.2`) or accession (`P68871`), optionally narrowed to one species. Pick a result (✅ marks entries reviewed by UniProt's curators) to see:
+Search all of UniProt by name (`laccase`), gene (`TP53`), enzyme number (`1.10.3.2`) or accession (`P68871`), optionally narrowed to one species. Both boxes suggest matches in a dropdown as you type. Pick a result (✅ marks entries reviewed by UniProt's curators) to see:
 
 - **AlphaFold's predicted 3D structure**, colored as a rainbow from start to end or by AlphaFold's own confidence. If AlphaFold has no model, the protein's experimental structure from the Protein Data Bank is shown instead.
 - **Active sites and binding sites** from UniProt, drawn right on the model (magenta for active sites, yellow for binding sites). UniProt and AlphaFold number residues the same way, so the marks line up exactly.

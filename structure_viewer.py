@@ -4,8 +4,11 @@ import re
 
 import py3Dmol
 import streamlit as st
+from streamlit_searchbox import st_searchbox
 
-from databases import alphafold_model, build_query, search_uniprot, uniprot_entry
+from databases import (alphafold_model, build_query, is_ec_number, search_uniprot, suggest_proteins,
+                       uniprot_entry)
+from species_list import ALL_NAMES
 from structure3d import pdb_structure, show_html
 
 def is_pdb_id(text):
@@ -62,15 +65,55 @@ def result_label(result):
             + " (" + result["accession"] + ")")
 
 
+def suggest_species(text):
+    """Dropdown suggestions for the species box: the app's own species and fungi whose
+    scientific or common name has a word starting with what was typed, plus whatever was
+    typed, so any species UniProt knows can still be used."""
+    typed = text.strip().lower()
+    if not typed:
+        return []
+    matches = [(common + " (" + scientific + ")", scientific) for scientific, (common, _) in ALL_NAMES.items()
+               if any(word.startswith(typed) for word in re.split(r"[\s'()-]+", (scientific + " " + common).lower()))]
+    return matches[:10] + [("Use “" + text.strip() + "”", text.strip())]
+
+
 def structure_viewer_page():
     """Everything in the Structure viewer tab."""
     st.write("Search any protein in UniProt and see it in 3D. Type a protein name (laccase), a gene "
-             "(TP53), an enzyme number (1.10.3.2), a UniProt accession (P68871) or a PDB ID (4HHB).")
+             "(TP53), an enzyme number (1.10.3.2), a UniProt accession (P68871) or a PDB ID (4HHB), "
+             "and pick from the suggestions.")
 
     left, right = st.columns([1, 2])
-    query = left.text_input("Search", value="hemoglobin beta", key="viewer_query").strip()
-    organism = left.text_input("Species (optional)", placeholder="like Homo sapiens or Pleurotus",
-                               key="viewer_organism")
+    with left:
+        organism = st_searchbox(
+            suggest_species, label="Species (optional)", key="viewer_species_box",
+            placeholder="Type a species, like human or oyster mushroom",
+            help="Limits the search and the suggestions to one species. Clear it with the ×.",
+        ) or ""
+
+        def suggest_query(text):
+            """Dropdown suggestions for the search box: the full search for what was typed,
+            then matching curator-reviewed proteins (picking one opens it directly)."""
+            text = text.strip()
+            if not text:
+                return []
+            options = [("🔍 Search UniProt for “" + text + "”", text)]
+            if is_pdb_id(text):
+                options.insert(0, ("🧊 Open PDB structure " + text.upper(), text))
+            if len(text) >= 3 and not is_ec_number(text):
+                try:
+                    options += [(result_label(r), r["accession"]) for r in suggest_proteins(text, organism)]
+                except Exception:
+                    pass  # no suggestions if UniProt is slow to answer; the full search still works
+            return options
+
+        query = st_searchbox(
+            suggest_query, label="Search", key="viewer_search_box", default="hemoglobin beta",
+            placeholder="Type a protein, gene, EC number, accession or PDB ID", debounce=300,
+            help="✅ = reviewed by UniProt's curators. Picking a suggested protein opens it; "
+                 "picking the 🔍 line lists every match.",
+        )
+    query = (query or "").strip()
     style = left.radio("Style", ["Cartoon", "Sticks", "Surface"], horizontal=True, key="viewer_style")
     spin = left.toggle("Spin", value=True, key="viewer_spin")
     if not query:

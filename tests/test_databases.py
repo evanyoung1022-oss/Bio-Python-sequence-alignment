@@ -1,6 +1,8 @@
 """How searches are built and how UniProt answers are read. No internet needed."""
 from databases import (build_query, is_ec_number, is_the_enzyme, is_uniprot_accession,
-                       ncbi_exclusions, parse_sites, plain_name, summarize)
+                       ncbi_exclusions, parse_sites, plain_name, prefix_query, rank_suggestions,
+                       summarize)
+from structure_viewer import suggest_species
 
 
 def test_recognizes_enzyme_numbers():
@@ -79,6 +81,29 @@ def test_plain_name():
     assert plain_name("Actin, gamma", "actin")
     assert plain_name("Beta-actin", "actin")
     assert not plain_name("Actin cytoskeleton organization protein", "actin")
+
+
+def test_prefix_query_for_suggestions():
+    assert prefix_query("hemoglobin b") == "(protein_name:hemoglobin AND (protein_name:b* OR gene:b*))"
+    assert prefix_query("tp5") == "((protein_name:tp5* OR gene:tp5*))"
+    assert prefix_query("") == ""
+    assert prefix_query("2.4.1") == ""  # the start of an enzyme number isn't a name
+
+
+def test_rank_suggestions_puts_names_starting_with_the_text_first():
+    def result(name, organism="Homo sapiens"):
+        return {"name": name, "organism": organism}
+
+    ranked = rank_suggestions([result("Insulin receptor substrate 4"), result("CCN family member 1"),
+                               result("Insulin"), result("Insulin")], "insul")
+    assert [r["name"] for r in ranked] == ["Insulin", "Insulin receptor substrate 4", "CCN family member 1"]
+
+
+def test_suggest_species_matches_common_and_scientific_names():
+    assert suggest_species("oys")[0] == ("Oyster mushroom (Pleurotus ostreatus)", "Pleurotus ostreatus")
+    assert suggest_species("danio")[0][1] == "Danio rerio"
+    assert suggest_species("Escherichia coli")[-1] == ("Use “Escherichia coli”", "Escherichia coli")
+    assert suggest_species("  ") == []
 
 
 def test_ncbi_exclusions():

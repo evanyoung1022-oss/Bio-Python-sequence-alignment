@@ -80,6 +80,58 @@ def search_uniprot(query, size=10, best_annotated=False):
     return sorted(results, key=lambda r: not r["reviewed"])  # stable: keeps the order within each
 
 
+def prefix_query(text):
+    """UniProt query for live suggestions: every word typed must be in the protein's name,
+    and the last word may be unfinished ('hemoglobin b' -> hemoglobin beta). The last word
+    can also be the start of a gene symbol ('tp5' -> TP53)."""
+    words = re.findall(r"[A-Za-z0-9-]+", text)
+    if not words or re.match(r"\s*\d+\.", text):
+        return ""  # nothing typed yet, or the start of an enzyme number like 2.4.1
+    parts = ["protein_name:" + word for word in words[:-1]]
+    parts.append("(protein_name:" + words[-1] + "* OR gene:" + words[-1] + "*)")
+    return "(" + " AND ".join(parts) + ")"
+
+
+def rank_suggestions(results, text):
+    """Names that start with what was typed come first, shortest first (Insulin before
+    Insulin receptor substrate 4); repeats of the same name and species are dropped."""
+    seen, unique = set(), []
+    for result in results:
+        if (result["name"], result["organism"]) not in seen:
+            seen.add((result["name"], result["organism"]))
+            unique.append(result)
+    typed = text.strip().lower()
+    return sorted(unique, key=lambda r: (not r["name"].lower().startswith(typed), len(r["name"])))
+
+
+@st.cache_data(show_spinner=False, ttl=24 * 3600)
+def suggest_proteins(text, organism=""):
+    """Curator-reviewed proteins matching what has been typed so far, best matches first."""
+    query = prefix_query(text)
+    if not query:
+        return []
+    query += " AND reviewed:true"
+    if organism.strip():
+        query += ' AND organism_name:"' + organism.strip() + '"'
+    return rank_suggestions(search_uniprot(query, size=25), text)[:8]
+
+
+@st.cache_data(show_spinner=False, ttl=24 * 3600)
+def suggest_fungal_enzymes(text):
+    """Distinct names of curator-reviewed fungal proteins matching what has been typed, with
+    their enzyme numbers: [(name, EC numbers), ...]. Copy numbers are merged, so Laccase-1
+    and Laccase-2 both show up as Laccase."""
+    query = prefix_query(text)
+    if not query:
+        return []
+    results = rank_suggestions(search_uniprot(query + " AND taxonomy_id:4751 AND reviewed:true", size=50), text)
+    names = {}
+    for result in results:
+        name = re.sub(r"[\s-]+\d+[A-Za-z]?$", "", result["name"])
+        names.setdefault(name, set()).update(result["ec"])
+    return [(name, sorted(ecs)) for name, ecs in names.items()][:8]
+
+
 def parse_sites(entry):
     """[{position, kind, label}, ...] for the single-residue functional sites in a UniProt entry."""
     sites = []

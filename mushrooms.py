@@ -1,8 +1,10 @@
 """The Mushroom enzymes tab: compare one fungal enzyme across mushrooms and other fungi."""
 import streamlit as st
+from streamlit_searchbox import st_searchbox
 
 from analysis import similarity
-from databases import enzyme_query, is_ec_number, is_the_enzyme, ncbi_exclusions, plain_name, search_uniprot
+from databases import (enzyme_query, is_ec_number, is_the_enzyme, ncbi_exclusions, plain_name,
+                       search_uniprot, suggest_fungal_enzymes)
 from species_list import FUNGI, label
 from structure3d import show_reference_structure
 from tree import build_tree, percent_identity, to_newick, tree_figure
@@ -154,6 +156,22 @@ def find_enzyme(term, ec, species_list, search_accession, fetch_records, progres
     return [found[s] for s in species_list if s in found]  # keep the order the user picked
 
 
+def suggest_enzymes(text):
+    """Dropdown suggestions for a custom enzyme: what was typed, then matching fungal
+    enzymes from UniProt, labeled with their enzyme numbers."""
+    text = text.strip()
+    if not text:
+        return []
+    options = [("🔍 Search for “" + text + "”", text)]
+    if len(text) >= 3 and not is_ec_number(text):
+        try:
+            options += [(name + (" (EC " + ", ".join(ecs) + ")" if ecs else ""), name)
+                        for name, ecs in suggest_fungal_enzymes(text)]
+        except Exception:
+            pass  # no suggestions if UniProt is slow to answer; the search still works
+    return options
+
+
 def mushroom_page(search_accession, fetch_records, align, conservation, conservation_figure):
     """Everything in the Mushroom enzymes tab. The NCBI and alignment helpers come from app.py."""
     st.write("Compare an enzyme across mushrooms and other fungi. Many of these enzymes break "
@@ -162,9 +180,13 @@ def mushroom_page(search_accession, fetch_records, align, conservation, conserva
     left, right = st.columns([1, 2])
     enzyme = left.selectbox("Enzyme", list(ENZYMES) + ["Other (type a name or EC number)"], key="mush_enzyme")
     if enzyme.startswith("Other"):
-        typed = left.text_input("Enzyme name or EC number", value="glucose oxidase", key="mush_custom",
-                                help="An EC number like 1.1.3.4 searches UniProt only. A name searches "
-                                     "UniProt, then NCBI.").strip()
+        with left:
+            typed = (st_searchbox(
+                suggest_enzymes, label="Enzyme name or EC number", key="mush_custom_box",
+                default="glucose oxidase", placeholder="Type an enzyme, like glucose oxidase", debounce=300,
+                help="Suggestions are fungal proteins reviewed by UniProt's curators. An EC number like "
+                     "1.1.3.4 searches UniProt only; a name searches UniProt, then NCBI.",
+            ) or "").strip()
         term, ec = ("", typed) if is_ec_number(typed) else (typed, "")
         enzyme_name = typed if term else "EC " + typed
     else:

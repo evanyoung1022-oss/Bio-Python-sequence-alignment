@@ -3,12 +3,9 @@
 Hemoglobin uses its real X-ray structure (PDB 4HHB). Every other gene uses the
 AlphaFold predicted structure for the human protein, found through UniProt, with the
 active sites and binding sites from its UniProt entry marked."""
-import io
-
 import py3Dmol
 import streamlit as st
 from Bio import Align
-from Bio.PDB import PDBParser
 from Bio.SeqUtils import seq1
 
 from databases import alphafold_model, download, search_uniprot, uniprot_entry
@@ -62,10 +59,19 @@ def marked_sites(accession):
 
 
 def chain_residues(pdb_text, chain):
-    """[(residue number, one-letter amino acid), ...] for one chain of a PDB file."""
-    structure = PDBParser(QUIET=True).get_structure("model", io.StringIO(pdb_text))
-    return [(residue.id[1], seq1(residue.get_resname()))
-            for residue in structure[0][chain] if residue.id[0] == " "]  # skip heme and water
+    """[(residue number, one-letter amino acid), ...] for one chain of a PDB file.
+    Reads the ATOM lines directly (HETATM heme and water are skipped). We don't use
+    Bio.PDB because Windows Smart App Control blocks its compiled parts on some PCs."""
+    residues, seen = [], set()
+    for line in pdb_text.splitlines():
+        if line.startswith("ENDMDL"):
+            break  # first model only
+        if line.startswith("ATOM") and line[21] == chain:
+            key = line[22:27]  # residue number plus insertion code
+            if key not in seen:
+                seen.add(key)
+                residues.append((int(line[22:26]), seq1(line[17:20].strip())))
+    return residues
 
 
 def match_identity(seq, residues, numbers):

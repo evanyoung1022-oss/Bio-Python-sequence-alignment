@@ -3,7 +3,13 @@ import re
 from collections import Counter
 
 from Bio.Align import PairwiseAligner
-from pyfamsa import Aligner, Sequence
+
+# pyfamsa is a compiled extension, and Windows Smart App Control blocks it on some PCs.
+# Without it we fall back to a slower pure-Biopython alignment so the app still works.
+try:
+    from pyfamsa import Aligner, Sequence
+except ImportError:
+    Aligner = None
 
 
 def protein_name(description):
@@ -16,9 +22,40 @@ def protein_name(description):
 
 def align(sequences):
     """Multiple alignment with FAMSA. Takes and returns a list of (name, sequence)."""
+    if Aligner is None:
+        return center_star_align(sequences)
     famsa_input = [Sequence(name.encode(), seq.encode()) for name, seq in sequences]
     result = Aligner().align(famsa_input)
     return [(s.id.decode(), s.sequence.decode()) for s in result]
+
+
+def center_star_align(sequences):
+    """Multiple alignment from pairwise ones: pick the sequence most like all the others,
+    align every sequence to it, then line those pairwise alignments up on its residues."""
+    aligner = PairwiseAligner(scoring="blastp")
+    seqs = [seq for _, seq in sequences]
+    center = max(seqs, key=lambda c: sum(aligner.score(c, s) for s in seqs))
+
+    # For each sequence: letters inserted before each center residue, and the letter on it.
+    inserts, matches = [], []
+    for seq in seqs:
+        pair = aligner.align(center, seq)[0]
+        ins, match = [""] * (len(center) + 1), []
+        for c, s in zip(pair[0], pair[1]):
+            if c == "-":
+                ins[len(match)] += s
+            else:
+                match.append(s)
+        inserts.append(ins)
+        matches.append(match)
+
+    widths = [max(len(ins[k]) for ins in inserts) for k in range(len(center) + 1)]
+    rows = []
+    for ins, match in zip(inserts, matches):
+        row = "".join(ins[k].ljust(widths[k], "-") + (match[k] if k < len(center) else "")
+                      for k in range(len(center) + 1))
+        rows.append(row)
+    return [(name, row) for (name, _), row in zip(sequences, rows)]
 
 
 def similarity(seq_a, seq_b):
