@@ -80,8 +80,8 @@ def cell_svg(highlight):
         '<svg viewBox="0 0 640 420" width="640" height="420" xmlns="http://www.w3.org/2000/svg" '
         'font-family="Poppins, Segoe UI, Arial, sans-serif">',
         # outside the cell, with a few secreted molecules
-        '<rect x="0" y="0" width="640" height="420" rx="18" fill="%s" opacity="0.35"/>'
-        % (ON_FILL if "extracellular" in highlight else "#f4f5f8"),
+        '<rect x="0" y="0" width="640" height="420" rx="18" fill="%s"/>'
+        % ("#c4efe5" if "extracellular" in highlight else "#f4f5f8"),
         text(16, 26, "extracellular"),
     ]
     for x, y in [(40, 70), (600, 60), (30, 380), (610, 390), (590, 220)]:

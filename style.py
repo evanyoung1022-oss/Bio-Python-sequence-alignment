@@ -1,5 +1,6 @@
 """The look of the app: a deep purple banner, teal buttons and clean white sections.
-apply_style() adds the colors and fonts; hero() draws the banner on the home page."""
+apply_style() adds the colors and fonts (and the dark colors when dark mode is on);
+hero() draws the banner on the home page."""
 import streamlit as st
 
 PURPLE = "#2c1a6e"
@@ -8,6 +9,85 @@ TEAL = "#17c3a2"
 TEAL_DARK = "#0fa98b"
 INK = "#1f1d3a"
 GRAY = "#f2f4f7"
+
+# Dark mode colors: deep purple-black backgrounds that keep the teal accents
+DARK_BG = "#15131f"
+DARK_PANEL = "#1d1a2c"
+DARK_CARD = "#252238"
+DARK_LINE = "#3a3555"
+DARK_TEXT = "#ece9f7"
+DARK_MUTED = "#a9a4c4"
+
+# Streamlit can't switch its own theme from code, so dark mode repaints the page with CSS.
+DARK_CSS = """
+<style>
+.stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"], [data-testid="stBottom"] > div {
+    background: DARK_BG !important; color: DARK_TEXT;
+}
+[data-testid="stSidebar"], [data-testid="stSidebar"] > div:first-child { background: DARK_PANEL !important; }
+.stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp p, .stApp li, .stApp label, .stApp td, .stApp th,
+.stApp summary, .stApp [data-testid="stMarkdownContainer"], .stApp [data-testid="stWidgetLabel"] * ,
+.lead, [data-testid="stMetricLabel"] * { color: DARK_TEXT !important; }
+[data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] * { color: DARK_MUTED !important; }
+.stApp a { color: TEAL !important; }
+[data-testid="stMetricValue"], [data-testid="stMetricValue"] * { color: #c3b4ff !important; }
+
+/* Boxes, dropdowns and their menus */
+[data-baseweb="select"] > div, [data-baseweb="input"], [data-baseweb="base-input"], .stApp input, .stApp textarea {
+    background: DARK_CARD !important; color: DARK_TEXT !important; border-color: DARK_LINE !important;
+}
+[data-baseweb="select"] svg, [data-baseweb="select"] span, [data-baseweb="select"] div { color: DARK_TEXT; }
+.react-aria-ComboBox [role="group"], .react-aria-Select button {
+    background: DARK_CARD !important; border-color: DARK_LINE !important; color: DARK_TEXT !important;
+}
+.react-aria-ComboBox button, .react-aria-ComboBox svg { color: DARK_TEXT !important; }
+.stApp input::placeholder { color: DARK_MUTED !important; opacity: 1; }
+.react-aria-Popover, .react-aria-ListBox { background: DARK_CARD !important; color: DARK_TEXT !important;
+    border-color: DARK_LINE !important; }
+[data-baseweb="popover"] > div, [data-baseweb="popover"] ul, [data-baseweb="menu"], [role="listbox"] {
+    background: DARK_CARD !important; color: DARK_TEXT !important;
+}
+[role="option"] { background: DARK_CARD !important; color: DARK_TEXT !important; }
+[role="option"]:hover, [role="option"][aria-selected="true"] { background: DARK_LINE !important; }
+[data-baseweb="tooltip"] div { background: DARK_CARD !important; color: DARK_TEXT !important; }
+
+/* Buttons and the section switcher */
+.stButton > button, .stDownloadButton > button, .stLinkButton > a { background: DARK_CARD !important; }
+.stButton > button:hover, .stDownloadButton > button:hover, .stLinkButton > a:hover {
+    background: TEAL_DARK !important; color: white !important;
+}
+.stButton > button[kind="primary"] { background: TEAL !important; color: white !important; }
+button[data-variant="segmented_control"] { background: DARK_CARD !important; color: DARK_TEXT !important;
+    border-color: DARK_LINE !important; }
+button[data-variant="segmented_control"][aria-checked="true"], button[data-variant="segmented_control"][data-selected] {
+    background: rgba(23, 195, 162, 0.18) !important; color: #7ff0d8 !important; border-color: TEAL !important;
+}
+button[data-variant="segmented_control"] * { color: inherit !important; }
+
+/* Cards, folding sections, tabs, tables, code and messages */
+[data-testid="stVerticalBlock"], [data-testid="stVerticalBlockBorderWrapper"], [data-testid="stMetric"],
+[data-testid="stExpander"] details {
+    border-color: DARK_LINE !important;
+}
+[data-testid="stExpander"] details, [data-testid="stExpander"] summary { background: DARK_PANEL !important; }
+.stTabs [data-baseweb="tab-list"] { border-bottom-color: DARK_LINE !important; }
+.stTabs [data-baseweb="tab"], .stTabs [data-baseweb="tab"] * { color: DARK_MUTED !important; }
+.stTabs [aria-selected="true"], .stTabs [aria-selected="true"] * { color: DARK_TEXT !important; }
+[data-testid="stTable"] table, [data-testid="stTable"] th, [data-testid="stTable"] td {
+    background: DARK_PANEL !important; border-color: DARK_LINE !important;
+}
+/* Tables are drawn on a canvas CSS can't recolor, so flip their colors instead */
+[data-testid="stDataFrame"] { filter: invert(0.9) hue-rotate(180deg); }
+.stApp pre, .stApp code { background: DARK_CARD !important; color: DARK_TEXT !important; }
+[data-testid="stAlertContainer"], [data-testid="stAlertContainer"] * { color: DARK_TEXT !important; }
+.strip { background: DARK_PANEL !important; color: DARK_MUTED !important; }
+.strip b { color: DARK_TEXT !important; }
+.strip .logos span { color: DARK_MUTED !important; }
+hr { border-color: DARK_LINE !important; }
+[data-testid="stTooltipIcon"], [data-testid="stTooltipIcon"] * { color: DARK_MUTED !important; opacity: 1 !important;
+    visibility: visible !important; background: transparent !important; }
+</style>
+"""
 
 CSS = """
 <style>
@@ -113,11 +193,18 @@ MOLECULE = """
 """
 
 
+def is_dark():
+    """True when the visitor has switched on dark mode (the toggle in the sidebar)."""
+    return bool(st.session_state.get("dark_mode"))
+
+
 def apply_style():
     """Add the app's colors and fonts. Call once, right after st.set_page_config."""
-    css = CSS
+    css = CSS + (DARK_CSS if is_dark() else "")
     for name, value in [("PURPLE_LIGHT", PURPLE_LIGHT), ("PURPLE", PURPLE), ("TEAL_DARK", TEAL_DARK),
-                        ("TEAL", TEAL), ("INK", INK), ("GRAY", GRAY)]:
+                        ("TEAL", TEAL), ("INK", INK), ("GRAY", GRAY), ("DARK_BG", DARK_BG),
+                        ("DARK_PANEL", DARK_PANEL), ("DARK_CARD", DARK_CARD), ("DARK_LINE", DARK_LINE),
+                        ("DARK_TEXT", DARK_TEXT), ("DARK_MUTED", DARK_MUTED)]:
         css = css.replace(name, value)
     st.markdown(css, unsafe_allow_html=True)
 

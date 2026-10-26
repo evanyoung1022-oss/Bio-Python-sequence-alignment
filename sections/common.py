@@ -1,8 +1,10 @@
 """Small helpers every section uses, so they all look and behave the same."""
 import streamlit as st
 
+from charts import theme_figure
 from sources import web
 from species_list import ALL_NAMES, canonical, label
+from style import is_dark
 
 
 def lead(text):
@@ -26,6 +28,12 @@ def load(function, *args, what="data"):
     except web.SourceError as error:
         st.warning("Couldn't load " + what + ". " + str(error))
     return None
+
+
+def show_chart(fig, **options):
+    """st.plotly_chart with colors that match light or dark mode."""
+    dark = is_dark()
+    return st.plotly_chart(theme_figure(fig, dark), theme=None if dark else "streamlit", **options)
 
 
 def species_name(organism, common_name=""):

@@ -7,7 +7,7 @@ import viewer3d
 from analysis import align, conservation, protein_name
 from charts import conservation_csv, conservation_figure
 from orthologs import find_orthologs
-from sections.common import how_it_works, lead, load
+from sections.common import how_it_works, lead, load, show_chart
 from sources import alphafold, ncbi, web
 from species_bios import bio, icon
 from species_list import ALL_NAMES, CLASSIC_SIX, FUNGI, SPECIES, canonical, group, label
@@ -111,12 +111,12 @@ def show_results(protein, run, title):
                                           help="Neighbor joining is the usual choice. UPGMA assumes every "
                                                "lineage changes at the same speed.")
             tree = build_tree(aligned, "upgma" if method == "UPGMA" else "nj")
-            st.plotly_chart(tree_figure(tree, aligned, title, reference), width="stretch",
+            show_chart(tree_figure(tree, aligned, title, reference), width="stretch",
                             config={"scrollZoom": True}, alt="Evolutionary tree of " + title)
             st.caption("Hover a species for details. Branch length shows how much the protein changed. This is the "
                        "history of one gene, which doesn't always match the history of the species.")
     with tabs[1]:
-        st.plotly_chart(conservation_figure(title, scores, consensus, aligned), width="stretch",
+        show_chart(conservation_figure(title, scores, consensus, aligned), width="stretch",
                         alt="Conservation of each position of " + title)
         st.caption("Dark bars are identical in every species. Tall stretches often mark the active site. "
                    "Hover a bar to see which amino acid each species has there.")

@@ -14,7 +14,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 import navigation
-from sections.common import how_it_works, lead
+from sections.common import how_it_works, lead, show_chart
 from sources import complex_portal, string_db, uniprot, web
 
 SOURCE_COLORS = {"STRING": "#4a2fa8", "UniProt": "#17c3a2", "Complex Portal": "#eb6834"}
@@ -178,7 +178,7 @@ def show(protein):
     except web.SourceError:
         links = []
     key = "network_" + protein["accession"]
-    st.plotly_chart(network_figure(center, partners, links), key=key,
+    show_chart(network_figure(center, partners, links), key=key,
                     on_select=partial(clicked, key, by_gene, protein["taxon"]), selection_mode="points",
                     config={"displayModeBar": False}, alt="Network of " + center + "'s interaction partners")
     st.caption("Thicker lines = stronger evidence in STRING. Thin gray lines link partners that also work with each other.")

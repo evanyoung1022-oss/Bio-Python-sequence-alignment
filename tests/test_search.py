@@ -51,3 +51,13 @@ def test_complex_search_survives_one_database_being_down(fake_web):
 
 def test_empty_box_returns_nothing():
     assert search.run_search("name", "   ", ANY, False) == ([], None)
+
+
+def test_dropdown_labels_and_examples():
+    import suggestions
+    from sections.landing import EXAMPLES
+    label = search.describe(suggestions.ENZYMES)
+    assert label("1.10.3.2") == "1.10.3.2 — laccase"
+    assert label("9.9.9.9") == "9.9.9.9"  # typed values show as typed
+    for _, _, _, kind, text, _ in EXAMPLES:  # every example's search is one of its box's suggestions
+        assert text in search.BOXES[kind][3]

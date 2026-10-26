@@ -27,7 +27,9 @@ def test_home_page_loads_with_examples():
     app = start()
     no_crash(app)
     assert [b.label for b in app.button if b.key and b.key.startswith("example_")] == ["Open"] * 5
-    assert len(app.text_input) == 6  # one box per kind of search
+    boxes = [s for s in app.selectbox if s.key and s.key.startswith("box_")]
+    assert len(boxes) == 6  # one box per kind of search
+    assert "IGHE — immunoglobulin heavy constant epsilon (IgE)" in app.selectbox(key="box_gene").options
 
 
 def test_example_opens_its_page():
@@ -76,7 +78,7 @@ def test_every_complex_section(kind, page_id, section):
 
 def test_searching_a_box_lists_results_and_opens_one():
     app = start()
-    app.text_input(key="box_gene").input("IGHE").run()
+    app.selectbox(key="box_gene").select("IGHE").run()
     no_crash(app)
     app.button(key="result_0").click().run()
     no_crash(app)
@@ -84,9 +86,7 @@ def test_searching_a_box_lists_results_and_opens_one():
 
 
 def test_bad_input_and_missing_entries_show_friendly_messages():
-    app = start()
-    app.text_input(key="box_ec").input("1.10").run()
-    assert any("EC number" in i.value for i in app.info)
+    assert "EC number" in typed_search("ec", "1.10")["message"]
     app = start(protein="NOTANID")
     assert app.error and not app.exception
     app = start(protein="Q99999")  # well formed, but UniProt has no such entry
@@ -125,3 +125,39 @@ def test_across_species_compare_and_downloads(monkeypatch):
     for wanted in ["Alignment (FASTA)", "Conservation scores (CSV)", "Family tree (Newick)",
                    "Conservation chart (PNG)", "Family tree (PNG)"]:
         assert wanted in labels
+
+
+TYPED_SEARCH = """
+import streamlit as st
+import search
+st.session_state["box_" + KIND] = TEXT
+search.remember_search(KIND)
+st.session_state["opened"] = dict(st.query_params)
+"""
+
+
+def typed_search(kind, text):
+    """Run a box's search for something typed in rather than picked from its suggestions.
+    AppTest can't type new values into a dropdown, so this calls the box's callback
+    inside a tiny app instead."""
+    script = "KIND, TEXT = " + repr(kind) + ", " + repr(text) + TYPED_SEARCH
+    app = AppTest.from_string(script, default_timeout=30).run()
+    no_crash(app)
+    return dict(app.session_state["search_results"], opened=app.session_state["opened"])
+
+
+def test_typed_values_not_in_the_dropdown_still_search():
+    assert typed_search("uniprot", "p12319")["opened"] == {"protein": "P12319"}
+    assert typed_search("name", "immunoglobulin E")["items"][0]["id"] == "P01854"
+
+
+@pytest.mark.parametrize("query", [{}, {"protein": "P01854"}, {"pdb": "4HHB"}])
+def test_dark_mode_works_everywhere(query):
+    app = start(**query)
+    app.toggle(key="dark_mode").set_value(True).run()
+    no_crash(app)
+    assert any("DARK" not in m.value and "#15131f" in m.value for m in app.markdown)  # dark colors added
+    for section in (PROTEIN_SECTIONS if "protein" in query else COMPLEX_SECTIONS if query else []):
+        app.session_state["section"] = section
+        app.run()
+        no_crash(app)

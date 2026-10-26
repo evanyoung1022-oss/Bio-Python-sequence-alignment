@@ -34,7 +34,9 @@ The home page has five one-click examples:
 | PDB ID | `4HHB` | Opens the structure directly |
 | Cell structure or complex | `ribosome`, `proteasome` | Complex Portal and RCSB PDB |
 
-An organism filter (human by default, or any organism) and a "Reviewed (Swiss-Prot) only" switch narrow the results. Every page has its own web address (like `?protein=P01854`), so it can be bookmarked or shared.
+Each box is a dropdown with suggestions (about 140 common genes, everyday protein names, 39 enzymes with their EC numbers, famous PDB structures, well-known UniProt IDs and cell structures), every one checked against the databases. Typing filters the list (type "insulin" in the gene box to find INS), and anything not on the list can still be typed and searched. An organism filter (human by default, or any organism) and a "Reviewed (Swiss-Prot) only" switch narrow the results. Every page has its own web address (like `?protein=P01854`), so it can be bookmarked or shared.
+
+A **Dark mode** switch at the top of the sidebar repaints the whole app, including the charts and the 3D viewer.
 
 ## The protein page
 
@@ -84,6 +86,7 @@ Search box ──> UniProt / RCSB PDB / Complex Portal ──> protein page
 |---|---|
 | `app.py` | Page layout only: the sidebar, and which page and section to show |
 | `search.py` | The six search boxes, the organism filter and the results list |
+| `suggestions.py` | The suggestion lists for the search dropdowns |
 | `navigation.py` | Keeps the open page in the web address |
 | `sources/` | One file per database: `uniprot.py`, `pdb.py`, `alphafold.py`, `ncbi.py`, `string_db.py`, `complex_portal.py`, plus `web.py` for downloads and friendly errors |
 | `sections/` | One file per page section: `overview.py`, `location.py`, `structure.py`, `species.py`, `partners.py`, `downloads.py`, plus `complex.py` and `landing.py` |
@@ -93,8 +96,8 @@ Search box ──> UniProt / RCSB PDB / Complex Portal ──> protein page
 | `viewer3d.py` | Draws 3D structures with py3Dmol and maps residue numbers |
 | `charts.py` | Conservation chart and PNG pictures for downloads |
 | `species_list.py`, `species_bios.py` | The 52 species with common names, groups and notes |
-| `style.py`, `.streamlit/config.toml` | The purple and teal look |
-| `tests/` | 80 automated tests that run offline with canned database answers |
+| `style.py`, `.streamlit/config.toml` | The purple and teal look, and the dark mode colors |
+| `tests/` | 85 automated tests that run offline with canned database answers |
 | `early_scripts/` | The first scripts from the original hemoglobin study |
 
 ## Run it on Windows

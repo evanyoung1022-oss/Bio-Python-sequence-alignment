@@ -15,6 +15,7 @@ from sources import uniprot
 from style import apply_style
 
 st.set_page_config(page_title="Protein Explorer", page_icon="🧬", layout="wide")
+st.session_state.setdefault("dark_mode", False)
 apply_style()
 
 st.session_state.setdefault("organism", "Human")

@@ -39,6 +39,16 @@ def conservation_figure(title, scores, consensus, aligned):
     return fig
 
 
+def theme_figure(fig, dark):
+    """Text and grid colors that suit light or dark mode (backgrounds stay see-through)."""
+    text, grid = ("#ece9f7", "rgba(236,233,247,0.15)") if dark else ("#1f1d3a", "rgba(128,128,128,0.15)")
+    fig.update_layout(font=dict(color=text), legend=dict(font=dict(color=text)),
+                      paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+    fig.update_xaxes(gridcolor=grid, linecolor=grid, zerolinecolor=grid)
+    fig.update_yaxes(gridcolor=grid, linecolor=grid, zerolinecolor=grid)
+    return fig
+
+
 def conservation_csv(scores, consensus):
     return "position,most_common,fraction_agree\n" + "".join(
         str(i + 1) + "," + letter + "," + str(round(s, 3)) + "\n"

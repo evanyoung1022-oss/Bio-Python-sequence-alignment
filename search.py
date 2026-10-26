@@ -8,6 +8,7 @@ import re
 import streamlit as st
 
 import navigation
+import suggestions
 from sources import complex_portal, pdb, uniprot, web
 
 # (label, NCBI taxonomy ID, scientific name). UniProt's taxonomy_id also matches strains.
@@ -24,15 +25,28 @@ ORGANISMS = [
     ("Any organism", None, ""),
 ]
 
-# key: (box label, placeholder, help)
+# key: (box label, placeholder, help, dropdown suggestions, {suggestion: description})
 BOXES = {
-    "name": ("Protein name", "insulin, immunoglobulin E", "Words from the protein's name."),
-    "gene": ("Gene symbol", "IGHE, FCER1A, TP53", "The official short name of the gene that makes the protein."),
-    "ec": ("Enzyme EC number", "1.10.3.2", "Enzyme Commission number: four numbers that name what an enzyme does."),
-    "uniprot": ("UniProt ID", "P01854", "A UniProt accession. Opens that protein directly."),
-    "pdb": ("PDB ID", "4HHB", "A 4-character Protein Data Bank ID. Opens that structure directly."),
-    "complex": ("Cell structure or complex", "ribosome, proteasome", "A protein machine or part of the cell."),
+    "name": ("Protein name", "insulin, immunoglobulin E", "Words from the protein's name.",
+             suggestions.PROTEIN_NAMES, {}),
+    "gene": ("Gene symbol", "IGHE, FCER1A, TP53", "The official short name of the gene that makes the protein. "
+             "Typing a word like 'insulin' also finds its gene.", list(suggestions.GENES), suggestions.GENES),
+    "ec": ("Enzyme EC number", "1.10.3.2", "Enzyme Commission number: four numbers that name what an enzyme "
+           "does. Typing an enzyme name like 'laccase' finds its number.", list(suggestions.ENZYMES),
+           suggestions.ENZYMES),
+    "uniprot": ("UniProt ID", "P01854", "A UniProt accession. Opens that protein directly.",
+                list(suggestions.UNIPROT_IDS), suggestions.UNIPROT_IDS),
+    "pdb": ("PDB ID", "4HHB", "A 4-character Protein Data Bank ID. Opens that structure directly.",
+            list(suggestions.PDB_IDS), suggestions.PDB_IDS),
+    "complex": ("Cell structure or complex", "ribosome, proteasome", "A protein machine or part of the cell.",
+                suggestions.COMPLEXES, {}),
 }
+
+
+def describe(descriptions):
+    """Dropdown label: 'IGHE — immunoglobulin heavy constant epsilon (IgE)'. Values someone
+    typed themselves are shown as they are."""
+    return lambda value: value + " — " + descriptions[value] if value in descriptions else value
 
 # Everyday names that UniProt doesn't use, pointing to the gene that makes the protein
 NICKNAMES = {
@@ -144,10 +158,9 @@ def search_complexes(text, organism):
 
 def remember_search(kind):
     """Run the box that was just edited, clear the others, and save the results."""
-    text = st.session_state.get("box_" + kind, "")
     for other in BOXES:
         if other != kind:
-            st.session_state["box_" + other] = ""
+            st.session_state["box_" + other] = None
     st.session_state["last_search"] = kind
     search_again()
 
@@ -157,7 +170,7 @@ def search_again():
     kind = st.session_state.get("last_search")
     if not kind:
         return
-    text = st.session_state.get("box_" + kind, "")
+    text = st.session_state.get("box_" + kind) or ""
     organism = ORGANISMS[[o[0] for o in ORGANISMS].index(st.session_state.get("organism", "Human"))]
     state = {"kind": kind, "text": text, "items": [], "message": ""}
     try:
@@ -177,12 +190,16 @@ def search_again():
 
 def search_panel():
     """The boxes, filters and results list. Call inside `with st.sidebar:`."""
-    st.button("Home", icon=":material/home:", on_click=navigation.go_home)
+    with st.container(horizontal=True, vertical_alignment="center"):
+        st.button("Home", icon=":material/home:", on_click=navigation.go_home)
+        st.toggle("Dark mode", key="dark_mode")
     st.subheader("Search")
-    st.caption("Use whichever box fits what you know, then press Enter.")
-    for kind, (label, placeholder, help_text) in BOXES.items():
-        st.text_input(label, key="box_" + kind, placeholder="e.g. " + placeholder, help=help_text,
-                      on_change=remember_search, args=(kind,))
+    st.caption("Use whichever box fits what you know. Pick a suggestion, or type your own and press Enter.")
+    for kind, (label, placeholder, help_text, options, descriptions) in BOXES.items():
+        st.selectbox(label, options, index=None, key="box_" + kind, placeholder="e.g. " + placeholder,
+                     help=help_text, accept_new_options=True, filter_mode="contains",
+                     format_func=describe(descriptions),
+                     on_change=remember_search, args=(kind,))
     st.selectbox("Organism", [o[0] for o in ORGANISMS], key="organism", on_change=search_again,
                  help="Limits name, gene, EC and complex searches to one species.")
     st.toggle("Reviewed (Swiss-Prot) only", key="reviewed", on_change=search_again,

@@ -9,6 +9,8 @@ import py3Dmol
 import streamlit as st
 from Bio import Align
 
+from style import is_dark
+
 CONSERVED, MOSTLY, VARIABLE, NOT_COMPARED = "#2a78d6", "#8fb8ea", "#eb6834", "#bbbbbb"
 LABEL_STYLE = {"fontSize": 12, "fontColor": "white", "backgroundColor": "black", "backgroundOpacity": 0.7}
 
@@ -101,7 +103,7 @@ def draw(structure, style="Cartoon", color="Rainbow", spin=True, sites=(), chain
     # The file ends up inside the viewer's JavaScript. Coordinate files never contain "<",
     # so removing it means a damaged or tampered file can't inject HTML into the page.
     view.addModel(structure["text"].replace("<", ""), structure["format"])
-    view.setBackgroundColor("white")  # solid, so it never shows up black inside a tab
+    view.setBackgroundColor("#15131f" if is_dark() else "white")  # solid, so it never shows up black in a tab
 
     if structure.get("coarse"):  # one bead per residue for giant assemblies
         for chain_id, hex_color in chain_colors(structure["residues"]).items():
