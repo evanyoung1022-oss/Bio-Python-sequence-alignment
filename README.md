@@ -1,147 +1,149 @@
-# 🧬 Protein Conservation Explorer
+# 🧬 Protein Explorer
 
 [![tests](https://github.com/evanyoung1022-oss/Bio-Python-sequence-alignment/actions/workflows/tests.yml/badge.svg)](https://github.com/evanyoung1022-oss/Bio-Python-sequence-alignment/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 **Live app: [hemoglobin-explorer.streamlit.app](https://hemoglobin-explorer.streamlit.app/)**
 
-A Python and Biopython project that downloads the same protein from many species, lines them up, and shows which parts evolution has kept the same, as a chart, a family tree and a spinnable 3D model.
+Look up any protein, enzyme or cell structure and get one clear page about it: what it does, where it works in the cell, its 3D shape, how it changed across species, and which proteins it works with. Every section starts with a plain-English sentence, so it reads well for students and recruiters, and keeps the technical detail (and the data sources) one click away for researchers.
 
-It started as a set of scripts studying hemoglobin beta across six mammals and grew into an interactive web app that works for almost any gene, any protein structure, and a set of wood-digesting mushroom enzymes.
+Built with Python, Biopython and Streamlit on top of six free public databases: UniProt, RCSB PDB, AlphaFold DB, NCBI, STRING and the EBI Complex Portal.
 
-<img width="1335" height="801" alt="Screenshot of the Protein Conservation Explorer app" src="https://github.com/user-attachments/assets/0f76edbe-9a8d-42c8-bed4-fefc849e5089" />
+![Home page with one-click examples](docs/screenshots/home.png)
 
-## What the app does
+## Try it
 
-The app has three sections:
+The home page has five one-click examples:
 
-| Section | What it's for |
+| Example | Searched by | What it shows off |
+|---|---|---|
+| IgE antibody | Gene `IGHE` | Secreted *and* membrane-bound; partners include its receptor FCER1A |
+| IgE receptor | Gene `FCER1A` | A cell-membrane receptor and its signaling partners |
+| Hemoglobin | PDB `4HHB` | A four-chain lab structure with every chain labeled |
+| Laccase | EC `1.10.3.2` | A wood-digesting fungal enzyme compared across 16 mushrooms and molds |
+| Ribosome | Cell structure | The 81-chain human ribosome (PDB 6QZP) in 3D |
+
+## Search: one box per kind of input
+
+| Box | Example | Goes to |
+|---|---|---|
+| Protein name | `insulin`, `immunoglobulin E` | UniProt |
+| Gene symbol | `IGHE`, `FCER1A`, `TP53` | UniProt |
+| Enzyme EC number | `1.10.3.2` | UniProt |
+| UniProt ID | `P01854` | Opens the protein directly |
+| PDB ID | `4HHB` | Opens the structure directly |
+| Cell structure or complex | `ribosome`, `proteasome` | Complex Portal and RCSB PDB |
+
+An organism filter (human by default, or any organism) and a "Reviewed (Swiss-Prot) only" switch narrow the results. Every page has its own web address (like `?protein=P01854`), so it can be bookmarked or shared.
+
+## The protein page
+
+| Section | What you get |
 |---|---|
-| 🔬 Structure viewer | Search any protein in UniProt and see it in 3D, with its active sites marked |
-| 🧬 Gene explorer | Compare one gene across up to 34 vertebrates |
-| 🍄 Mushroom enzymes | Compare one enzyme across 18 mushrooms and other fungi |
+| **Overview** | A 2-3 sentence summary, then names, gene, organism, length, function, EC number, diseases and links to UniProt, PDB, AlphaFold and NCBI |
+| **Where in the cell** | A cell diagram that lights up where the protein is found, from UniProt's location notes and Gene Ontology terms |
+| **3D structure** | Lab structures sorted sharpest first, or the AlphaFold prediction, with active and binding sites marked. Whole complexes are shown with every chain colored and labeled |
+| **Across species** | Finds the same protein in 6 mammals, 34 vertebrates, 18 fungi or your own list, aligns them, and shows a family tree, a conservation chart, the alignment, a 3D model colored by conservation, species notes and sources |
+| **Partners** | A clickable network of the proteins it works with; click a dot to open that protein |
+| **Downloads** | FASTA, AlphaFold and lab structure files, the alignment, conservation scores (CSV), the tree (Newick) and chart pictures (PNG) |
 
-### 🔬 Structure viewer
+Structures and complexes (a PDB ID, or a curated complex like the 26S proteasome) get a similar page with Overview, Where in the cell, 3D structure, Members and Downloads.
 
-Search all of UniProt by name (`laccase`), gene (`TP53`), enzyme number (`1.10.3.2`) or accession (`P68871`), optionally narrowed to one species. Both boxes suggest matches in a dropdown as you type. Pick a result (✅ marks entries reviewed by UniProt's curators) to see:
-
-- **AlphaFold's predicted 3D structure**, colored as a rainbow from start to end or by AlphaFold's own confidence. If AlphaFold has no model, the protein's experimental structure from the Protein Data Bank is shown instead.
-- **Active sites and binding sites** from UniProt, drawn right on the model (magenta for active sites, yellow for binding sites). UniProt and AlphaFold number residues the same way, so the marks line up exactly.
-- **The protein's facts**: species, gene, enzyme number, length, what it does, and a table of every site.
-
-A 4-character PDB ID (like `4HHB`) opens that experimental structure directly.
-
-### 🧬 Gene explorer
-
-Pick a gene (type a symbol like `TP53` or a word like `insulin`) and a set of species, from the original six mammals up to every vertebrate in the list. The app then:
-
-1. **Finds the protein in each species on NCBI**, trying three ways: by gene name, through NCBI's ortholog lists (which link the same gene across species even when its name differs, like mouse `Hbb-bs`), and by protein name.
-2. **Aligns the sequences** with FAMSA, a fast multiple sequence aligner.
-3. **Scores every position** by the fraction of species that share the same amino acid.
-
-Results are shown in six tabs:
-
-| Tab | What it shows |
+| | |
 |---|---|
-| 🌳 Family tree | An interactive tree built from the alignment (neighbor joining or UPGMA) |
-| 📊 Conservation | Bar chart of how conserved each position is; hover a bar to see every species' amino acid |
-| 🧊 3D model | The human protein in 3D, colored by conservation. Hemoglobin uses its real X-ray structure (PDB 4HHB) with the heme groups and key sites labeled; other genes use AlphaFold's predicted structure with UniProt's active and binding sites marked |
-| 🐾 Species | A short note on each species, how long ago it split from humans, and its percent identity to human |
-| 🧬 Alignment | The full alignment |
-| 📄 Sources | Every NCBI record used, with links, protein names, lengths, and how each one was found |
+| ![Cell diagram](docs/screenshots/cell-location.png) | ![Hemoglobin with labeled chains](docs/screenshots/structure.png) |
+| ![Partner network](docs/screenshots/partners.png) | ![Laccase family tree across fungi](docs/screenshots/across-species.png) |
 
-Everything can be downloaded: the alignment (FASTA), conservation scores (CSV), the tree (Newick), and any chart as a PNG.
-
-### 🍄 Mushroom enzymes
-
-The same analysis for fungi. Pick an enzyme and a set of fungi, from button mushrooms and shiitake to turkey tail, reishi, dry rot and baker's yeast. Enzymes include:
-
-- **Laccase, manganese peroxidase and lignin peroxidase**, which break down lignin, the tough glue in wood (used for dye removal, bioremediation and pulp bleaching)
-- **Cellobiohydrolase**, which breaks cellulose into sugar (used in biofuel enzyme mixes)
-- **Tyrosinase**, which makes melanin and is why cut mushrooms turn brown
-- **Chitin synthase**, which builds fungal cell walls and is a target for antifungal drugs
-- **Actin**, a highly conserved control to compare the enzymes against
-- Or type any other enzyme name or enzyme (EC) number
-
-For each fungus, the app:
-
-1. **Searches UniProt** by enzyme number and name, full-length proteins only, skipping look-alikes such as "actin-binding protein" when you asked for actin.
-2. **Picks the matching copy.** Fungi often carry several copies of an enzyme, and two different copies can be less alike than the same copy in two species (some mushrooms have a second, unusual actin that is only about 56% identical to the normal one). The app compares each fungus's top candidates to a curator-reviewed reference and keeps the closest, so the alignment compares like with like.
-3. **Falls back to NCBI** (RefSeq, then GenBank) for fungi UniProt has nothing for.
-
-Results show the same tabs as the gene explorer: family tree, conservation chart, 3D model (the AlphaFold model of that exact UniProt entry, with its sites marked), a note on each fungus, the alignment and the sources, each linked to UniProt or NCBI.
-
-## Key findings (hemoglobin beta)
-
-- **106 of 147 positions (72%) are identical** across human, chimpanzee, rhesus macaque, cow, pig and horse.
-- **The most important sites never change.** Glu6 (the position mutated in sickle cell disease) and the two histidines that hold the heme iron (His63 and His92) are identical in all six species.
-- **Human hemoglobin alpha and beta are about 42% identical** (63 of 149 aligned positions). The two chains came from one ancestral gene that was duplicated and then diverged.
+![The human ribosome, one bead per residue, colored by chain](docs/screenshots/ribosome.png)
 
 ## How it works
 
 ```
-UniProt / NCBI  ->  FAMSA alignment  ->  conservation scores  ->  chart, tree, 3D model
+Search box ──> UniProt / RCSB PDB / Complex Portal ──> protein page
+                                                      ├─ Overview, cell location  (UniProt)
+                                                      ├─ 3D structure             (RCSB PDB, AlphaFold DB → py3Dmol)
+                                                      ├─ Across species           (NCBI via Bio.Entrez + UniProt → FAMSA → Bio.Phylo)
+                                                      └─ Partners                 (STRING + UniProt + Complex Portal)
 ```
 
-- **Retrieval:** Biopython `Entrez` searches NCBI's RefSeq proteins. Orthologs are found with NCBI Gene's ortholog groups and linked to their RefSeq proteins. Fungal enzymes and the structure viewer use the UniProt REST API.
-- **Alignment:** `pyfamsa` (FAMSA) for the multiple alignment; Biopython `PairwiseAligner` for pairwise comparisons and for picking the matching copy of an enzyme.
-- **Tree:** Biopython `Phylo` distance methods (neighbor joining and UPGMA).
-- **3D:** structures from the RCSB Protein Data Bank and the AlphaFold database (looked up through UniProt), lined up with the alignment and drawn with `py3Dmol`.
-- **App:** Streamlit, with Plotly for the interactive charts.
+- **Finding the same protein in other species:** for vertebrates, Biopython's `Bio.Entrez` searches NCBI RefSeq by gene name, then NCBI's ortholog lists (mouse hemoglobin beta is called `Hbb-bs`), then by protein name, with UniProt and GenBank as fallbacks. Fungi are searched in UniProt first; because fungi often carry several copies of an enzyme, the app picks the copy most like a curator-reviewed one (using Biopython's `PairwiseAligner`).
+- **Alignment and tree:** FAMSA (`pyfamsa`) aligns the sequences; each column is scored by how many species agree; Biopython's `DistanceCalculator` (BLOSUM62) and `DistanceTreeConstructor` build the tree.
+- **3D:** structure files are read with a small mmCIF reader (so it also works where Windows blocks `Bio.PDB`'s compiled parts). UniProt's site positions are matched to each file's own residue numbers by sequence alignment. Giant assemblies like the ribosome (220,000 atoms) are reduced to one bead per residue so they load in a browser.
+- **Partners:** STRING doesn't include antibody genes, so IgE's receptor would be missed by STRING alone. The app merges STRING with UniProt's interaction data, UniProt entries whose notes mention the protein (FCER1A's note says "Interacts with IGHE"), and fellow members of curated complexes.
+- **Speed and reliability:** every database call is cached with `st.cache_data`, NCBI calls retry politely when NCBI is busy, and a slow or missing database shows a friendly message instead of breaking the page.
 
-## Files
+## Key findings (hemoglobin beta)
 
-| File | What it does |
+- **106 of 147 positions (72%) are identical** across human, chimpanzee, rhesus macaque, cow, pig and horse.
+- **The most important sites never change.** Glu6 (mutated in sickle cell disease) and the two histidines that hold the heme iron (His63 and His92) are identical in all six species.
+- **Human hemoglobin alpha and beta are about 42% identical.** The two chains came from one ancestral gene that was duplicated and then diverged.
+
+## Project layout
+
+| Path | What it does |
 |---|---|
-| `app.py` | The Streamlit web app and the gene explorer |
-| `analysis.py` | Alignment, conservation scoring and sequence similarity |
-| `databases.py` | UniProt searches, active sites and AlphaFold models |
-| `structure_viewer.py` | The Structure viewer section |
-| `mushrooms.py` | The Mushroom enzymes section, with notes on each fungus and enzyme |
-| `structure3d.py` | Downloads 3D structures and colors them by conservation |
-| `style.py` | Page styling and the header |
-| `species_bios.py` | Notes and icons for each vertebrate species |
-| `species_list.py`, `gene_list.py` | Species, fungi and gene suggestion lists |
+| `app.py` | Page layout only: the sidebar, and which page and section to show |
+| `search.py` | The six search boxes, the organism filter and the results list |
+| `navigation.py` | Keeps the open page in the web address |
+| `sources/` | One file per database: `uniprot.py`, `pdb.py`, `alphafold.py`, `ncbi.py`, `string_db.py`, `complex_portal.py`, plus `web.py` for downloads and friendly errors |
+| `sections/` | One file per page section: `overview.py`, `location.py`, `structure.py`, `species.py`, `partners.py`, `downloads.py`, plus `complex.py` and `landing.py` |
+| `orthologs.py` | Finds the same protein in other species |
+| `analysis.py` | Alignment (FAMSA) and conservation scores |
 | `tree.py` | Builds and draws the family tree |
-| `read_fasta.py` | Reads a FASTA file with `SeqIO` |
-| `compare.py` | Pairwise alignment of human hemoglobin alpha vs beta |
-| `fetch.py`, `fetch_species.py` | Download proteins from NCBI |
-| `align_all.py` | Multiple alignment with FAMSA |
-| `conservation.py` | The original conservation chart with the key hemoglobin sites marked |
-| `tests/` | Automated tests, run on every push by GitHub Actions |
+| `viewer3d.py` | Draws 3D structures with py3Dmol and maps residue numbers |
+| `charts.py` | Conservation chart and PNG pictures for downloads |
+| `species_list.py`, `species_bios.py` | The 52 species with common names, groups and notes |
+| `style.py`, `.streamlit/config.toml` | The purple and teal look |
+| `tests/` | 80 automated tests that run offline with canned database answers |
+| `early_scripts/` | The first scripts from the original hemoglobin study |
 
-## Run it yourself
+## Run it on Windows
 
-```bash
+You need Python 3.11 or newer.
+
+```powershell
 git clone https://github.com/evanyoung1022-oss/Bio-Python-sequence-alignment.git
 cd Bio-Python-sequence-alignment
-pip install -r requirements.txt
-streamlit run app.py
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python -m streamlit run app.py
 ```
 
-NCBI asks every user of its API for an email address. Put yours in `.streamlit/secrets.toml` as `NCBI_EMAIL = "you@example.com"`. An optional free `NCBI_API_KEY` there makes NCBI searches about 3x faster.
+The app opens at http://localhost:8501.
 
-To run the tests:
+- If PowerShell says running scripts is disabled, run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once, or skip activation and use `.venv\Scripts\python.exe -m streamlit run app.py`.
+- Windows Smart App Control can block the `streamlit.exe` launcher ("An Application Control policy has blocked this file"). Starting it with `python -m streamlit` as above avoids that. If it blocks `pyfamsa`, the app falls back to a slower Biopython alignment automatically.
 
-```bash
-pip install pytest
-pytest
+**NCBI email.** NCBI asks every user of its API for an email address. Create `.streamlit/secrets.toml` (it is ignored by git, so it never gets uploaded) containing:
+
+```toml
+NCBI_EMAIL = "you@example.com"
+# NCBI_API_KEY = "..."   # optional and free; makes species searches about 3x faster
 ```
 
-The tests check alignment, conservation scoring, tree building (including the case where every sequence is identical), how UniProt searches are built and read, picking the matching enzyme copy, and that the whole app starts without errors.
+On Streamlit Community Cloud, paste the same lines into the app's **Settings → Secrets**.
+
+**Tests:**
+
+```powershell
+python -m pip install pytest
+python -m pytest
+```
+
+The tests never touch the internet: `tests/fakes.py` stands in for every database. They cover query building, reading each database's answers, the cell-location mapping, partner merging, residue-number mapping, ortholog picking, alignment and tree building, and they click through every page and section of the running app. GitHub Actions runs them on every push.
 
 ## Limitations
 
-- Results depend on how each species is annotated in UniProt and NCBI. Some species have no record for a protein, so they are skipped.
-- In the gene explorer, when a species has several versions (isoforms) of a protein, the app uses the first one NCBI returns.
-- Picking the matching enzyme copy works by similarity, so for enzymes with many very different copies (chitin synthase comes in several classes), the fungi may still be compared across copies.
-- Many fungal UniProt entries are unreviewed and have no active sites listed, so their 3D models may show no site marks.
+- Results depend on how well each species is annotated. Antibody genes like IGHE are sparsely annotated outside humans and mice, so fewer species are found for them.
+- When a species has several versions (isoforms) of a protein, the first one NCBI returns is used.
+- The cell diagram matches keywords in location terms, so it shows broad compartments, not exact sub-structures.
+- AlphaFold structures are predictions; regions it isn't confident about often look like loose loops.
 - A gene tree shows the history of one protein, which doesn't always match the history of the species.
-- AlphaFold structures are predictions, and regions it isn't confident about often look like loose loops.
 
 ## Built with
 
-Python, Biopython, NCBI E-utilities, UniProt REST API, FAMSA (pyfamsa), Streamlit, Plotly, py3Dmol, RCSB PDB, AlphaFold DB, matplotlib, pytest, GitHub Actions
+Python, Biopython (Entrez, SeqIO, PairwiseAligner, Phylo), Streamlit, FAMSA (pyfamsa), py3Dmol, Plotly, matplotlib, UniProt REST API, RCSB PDB search and data APIs, AlphaFold DB API, NCBI E-utilities, STRING API, EBI Complex Portal API, pytest, GitHub Actions.
 
 ## About
 

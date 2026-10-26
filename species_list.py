@@ -105,6 +105,15 @@ def label(name):
     return ALL_NAMES.get(scientific, (scientific, "Other"))[0]
 
 
+def canonical(organism):
+    """UniProt's 'Saccharomyces cerevisiae (strain ATCC 204508 / S288c)' -> the app's own
+    'Saccharomyces cerevisiae'. Names not in the app's lists come back unchanged."""
+    for scientific in ALL_NAMES:
+        if organism == scientific or organism.startswith(scientific + " "):
+            return scientific
+    return organism
+
+
 def group(name):
     scientific = name.replace("_", " ")
     return ALL_NAMES.get(scientific, (scientific, "Other"))[1]

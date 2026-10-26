@@ -1,6 +1,10 @@
+import tomllib
+
 from Bio import Entrez, SeqIO
 
-Entrez.email = "evanyoung1022@gmail.com"
+# NCBI asks for an email; it is read from .streamlit/secrets.toml so it never sits in code
+with open(".streamlit/secrets.toml", "rb") as secrets:
+    Entrez.email = tomllib.load(secrets)["NCBI_EMAIL"]
 
 species = ["Homo sapiens", "Pan troglodytes", "Macaca mulatta", "Bos taurus", "Sus scrofa", "Canis lupus familiaris", "Equus caballus"]
 

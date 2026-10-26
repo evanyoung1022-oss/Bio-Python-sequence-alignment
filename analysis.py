@@ -25,7 +25,9 @@ def align(sequences):
     if Aligner is None:
         return center_star_align(sequences)
     famsa_input = [Sequence(name.encode(), seq.encode()) for name, seq in sequences]
-    result = Aligner().align(famsa_input)
+    # One thread: these alignments take under a second anyway, and FAMSA's own worker
+    # threads once crashed the whole Streamlit server while it was busy with other requests.
+    result = Aligner(threads=1).align(famsa_input)
     return [(s.id.decode(), s.sequence.decode()) for s in result]
 
 

@@ -86,6 +86,60 @@ ICONS = {
 }
 
 
+# Fungi (from the old Mushroom enzymes tab): scientific name -> (icon, note)
+FUNGI_NOTES = {
+    "Agaricus bisporus": ("🍄", "White button, cremini and portobello mushrooms are all this one "
+                          "species. It is the most widely grown mushroom in the world, and its "
+                          "tyrosinase is what browns it after cutting."),
+    "Pleurotus ostreatus": ("🍄", "A white-rot fungus that breaks down wood, and a favorite in "
+                            "mycoremediation research for breaking down pollutants. It can even "
+                            "paralyze and eat tiny worms (nematodes)."),
+    "Lentinula edodes": ("🍄", "Shiitake, one of the most widely grown mushrooms, traditionally "
+                         "cultivated on hardwood logs, which it digests with wood-decaying enzymes."),
+    "Flammulina velutipes": ("🍄", "Enoki. Farmed enoki is grown in the dark with high carbon "
+                             "dioxide, which gives it long white stems; wild enoki is orange-brown."),
+    "Psilocybe cubensis": ("🍄", "Produces psilocybin. The four enzymes that make it (PsiD, PsiK, "
+                           "PsiM and PsiH) were identified in 2017."),
+    "Coprinopsis cinerea": ("🍄", "The inky cap, a lab model for how mushrooms develop. Its cap "
+                            "digests itself into a black ink to release spores."),
+    "Schizophyllum commune": ("🍄", "The split gill, found on every continent except Antarctica. "
+                              "It has tens of thousands of mating types."),
+    "Laccaria bicolor": ("🍄", "Lives in partnership with tree roots (mycorrhiza), trading "
+                         "nutrients for sugar. It was the first mycorrhizal fungus to have its "
+                         "genome sequenced."),
+    "Amanita muscaria": ("🍄", "The red-and-white fly agaric. It is toxic, and it partners with "
+                         "the roots of birch and pine trees."),
+    "Trametes versicolor": ("🪵", "Turkey tail, a white-rot bracket fungus. Its laccase is one of "
+                            "the most studied for industrial uses like dye removal."),
+    "Ganoderma lucidum": ("🪵", "Reishi, a wood-decaying bracket fungus used in traditional "
+                          "Chinese medicine for about 2,000 years."),
+    "Phanerochaete chrysosporium": ("🪵", "The classic lab model of white rot and the first "
+                                    "basidiomycete fungus to have its genome sequenced (2004). "
+                                    "Lignin peroxidase was discovered in it, but it lacks typical "
+                                    "laccases."),
+    "Hericium erinaceus": ("🍄", "Lion's mane, with shaggy icicle-like spines instead of gills. "
+                           "It makes compounds (hericenones and erinacines) studied for nerve "
+                           "growth effects."),
+    "Serpula lacrymans": ("🏚️", "Dry rot, which destroys timber in buildings. It is a brown-rot "
+                          "fungus: it eats cellulose but leaves lignin, after losing most of the "
+                          "lignin-attacking peroxidases its ancestors had."),
+    "Cordyceps militaris": ("🐛", "An ascomycete that infects insect pupae and grows orange fruiting "
+                            "bodies out of them. It makes cordycepin, studied as a drug lead."),
+    "Aspergillus niger": ("🧫", "A black mold used in industry to make citric acid and many food "
+                          "enzymes."),
+    "Neurospora crassa": ("🧫", "Red bread mold. Beadle and Tatum used it to show that one gene "
+                          "makes one enzyme, which won the 1958 Nobel Prize."),
+    "Saccharomyces cerevisiae": ("🍞", "Baker's and brewer's yeast, a single-celled fungus and the "
+                                 "first organism with a nucleus to have its genome sequenced (1996)."),
+}
+
+BIOS.update({name: note for name, (_, note) in FUNGI_NOTES.items()})
+ICONS.update({name: emoji for name, (emoji, _) in FUNGI_NOTES.items()})
+# The app's species list uses the gorilla's subspecies name
+BIOS["Gorilla gorilla gorilla"] = BIOS["Gorilla gorilla"]
+ICONS["Gorilla gorilla gorilla"] = ICONS["Gorilla gorilla"]
+
+
 def icon(species):
     """The emoji for a species, or a generic paw print if we don't have one."""
     return ICONS.get(species.replace("_", " "), "🐾")

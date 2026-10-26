@@ -1,8 +1,9 @@
-"""Alignment, conservation scoring and tree building. No internet needed."""
+"""Alignment, conservation scoring, tree building and picking orthologs. No internet needed."""
 import pytest
 
 from analysis import align, conservation, protein_name, similarity
-from mushrooms import pick_copies
+import orthologs
+from orthologs import pick_copies
 from tree import build_tree, percent_identity, to_newick, tree_figure
 
 ACTIN = "MEEEVAALVIDNGSGMCKAGFAGDDAPRAVFPSIVGRPRHQGVMVGMGQKDSYVGDEAQSKRGILTLKYPIEHGIVTNWDDMEKIW"
@@ -70,3 +71,48 @@ def test_tree_survives_identical_sequences(method):
     tree = build_tree(aligned, method)
     assert len(tree.get_terminals()) == 3
     tree_figure(tree, aligned, "actin", "Agaricus_bisporus")
+
+
+def test_is_the_protein_skips_look_alikes():
+    def match(name, ec=()):
+        return {"name": name, "ec": list(ec)}
+
+    assert orthologs.is_the_protein(match("Actin-1"), "actin", "")
+    assert orthologs.is_the_protein(match("Beta-actin"), "actin", "")
+    assert not orthologs.is_the_protein(match("Actin-binding protein"), "actin", "")
+    assert not orthologs.is_the_protein(match("Alpha-actinin"), "actin", "")
+    # A matching EC number counts even when the name is unhelpful
+    assert orthologs.is_the_protein(match("Contig An01c0440", ["1.10.3.2"]), "laccase", "1.10.3.2")
+    assert orthologs.is_the_protein(match("Chitin-binding protein"), "chitin-binding protein", "")
+
+
+def test_names():
+    assert orthologs.plain_name("Laccase 1b", "laccase")
+    assert not orthologs.plain_name("Actin cytoskeleton organization protein", "actin")
+    assert orthologs.base_name("Laccase-2") == "laccase"
+    assert " NOT binding[Title]" in orthologs.ncbi_exclusions("actin")
+    assert "kinase" not in orthologs.ncbi_exclusions("protein kinase")
+
+
+def test_find_orthologs_sends_each_species_the_right_way(monkeypatch):
+    """Fungi go through the UniProt-first search, other species through NCBI, and the
+    page's own protein stands in for its own species."""
+    asked = {}
+
+    def vertebrates(gene, name, species, report, home=None):
+        asked["vertebrates"] = (gene, name, species, home)
+        return [orthologs.record(s, "NP_" + s[:3], "x [" + s + "]", "MKV", "gene name") for s in species]
+
+    def fungi(term, ec, species, report):
+        asked["fungi"] = (term, ec, species)
+        return []
+
+    monkeypatch.setattr(orthologs, "find_vertebrates", vertebrates)
+    monkeypatch.setattr(orthologs, "find_fungi", fungi)
+    protein = {"organism": "Homo sapiens", "gene": "HBB", "name": "Hemoglobin subunit beta", "ec": [],
+               "accession": "P68871", "sequence": "MVHL"}
+    found = orthologs.find_orthologs(protein, ["Homo sapiens", "Mus musculus", "Pleurotus ostreatus"], lambda f, t: None)
+    assert asked["vertebrates"] == ("HBB", "hemoglobin subunit beta", ["Mus musculus"], "Homo sapiens")
+    assert asked["fungi"] == ("hemoglobin subunit beta", "", ["Pleurotus ostreatus"])
+    assert [(f["species"], f["found_by"]) for f in found] == [("Homo sapiens", "this page's protein"),
+                                                               ("Mus musculus", "gene name")]

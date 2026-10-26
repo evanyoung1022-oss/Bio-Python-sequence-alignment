@@ -1,5 +1,5 @@
 """The look of the app: a deep purple banner, teal buttons and clean white sections.
-apply_style() adds the colors and fonts; hero() draws the banner at the top of the page."""
+apply_style() adds the colors and fonts; hero() draws the banner on the home page."""
 import streamlit as st
 
 PURPLE = "#2c1a6e"
@@ -49,15 +49,8 @@ header[data-testid="stHeader"] { background: transparent; }
 .stTabs [aria-selected="true"] { color: INK !important; }
 .stTabs [data-baseweb="tab-highlight"] { background-color: TEAL !important; height: 3px; }
 
-/* Number boxes and folding sections look like white cards */
-[data-testid="stMetric"], [data-testid="stExpander"] {
-    background: white;
-    border: 1px solid #e6e8ef;
-    border-radius: 12px;
-    padding: 0.8rem 1rem;
-    box-shadow: 0 2px 10px rgba(44, 26, 110, 0.06);
-}
-[data-testid="stMetricValue"] { color: PURPLE; font-weight: 700; }
+/* Numbers in purple */
+[data-testid="stMetricValue"] { color: PURPLE; font-weight: 700; font-size: 1.8rem !important; }
 
 /* The purple banner */
 .hero {
@@ -88,17 +81,9 @@ header[data-testid="stHeader"] { background: transparent; }
 .strip .logos { display: flex; justify-content: center; flex-wrap: wrap; gap: 2.4rem; margin-top: 0.5rem; }
 .strip .logos span { font-weight: 700; font-size: 1.05rem; color: #6c6b80; letter-spacing: 0.02em; }
 
-/* Feature list with teal check marks */
-.features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.4rem; margin: 0 0 1.8rem 0; }
-.feature h4 { margin: 0 !important; padding: 0 0 0.3rem 0 !important; font-size: 1rem; color: INK; }
-.feature h4::before {
-    content: "✓"; display: inline-block; width: 1.3rem; height: 1.3rem; line-height: 1.3rem;
-    text-align: center; border-radius: 50%; background: TEAL; color: white;
-    font-size: 0.8rem; margin-right: 0.5rem;
-}
-.feature p { margin: 0; color: #5b5a72; font-size: 0.9rem; }
+/* The plain-English sentence at the top of each section */
+.lead { font-size: 1.08rem; color: INK; margin: 0.1rem 0 0.8rem 0; line-height: 1.55; }
 @media (max-width: 800px) {
-    .features { grid-template-columns: 1fr; }
     .hero { padding: 2rem 1.5rem; }
     .hero svg { display: none; }
 }
@@ -138,26 +123,19 @@ def apply_style():
 
 
 def hero():
-    """The purple banner, the strip of databases and the feature list at the top of the page."""
+    """The purple banner and the strip of databases at the top of the home page."""
     st.markdown(
         '<div class="hero">' + MOLECULE +
-        "<h1>Protein Conservation<br>Explorer</h1>"
-        "<p>Look up any protein, see its 3D structure, and find out which parts evolution has "
-        "kept the same across species, from humans to mushrooms.</p>"
+        "<h1>Protein<br>Explorer</h1>"
+        "<p>Look up any protein, enzyme or cell structure. See what it does, where it works in the cell, "
+        "its 3D shape, how it changed across species and which proteins it works with.</p>"
         '<span class="tag">🔬 3D structures</span>'
-        '<span class="tag">🧬 Species comparison</span>'
-        '<span class="tag">🍄 Fungal enzymes</span>'
+        '<span class="tag">📍 Cell location</span>'
+        '<span class="tag">🧬 Across species</span>'
+        '<span class="tag">🕸️ Partners</span>'
         "</div>"
         '<div class="strip">Powered by trusted public <b>databases</b>'
         '<div class="logos"><span>UniProt</span><span>RCSB PDB</span><span>AlphaFold DB</span>'
-        "<span>NCBI</span></div></div>"
-        '<div class="features">'
-        '<div class="feature"><h4>Curated data</h4><p>Protein facts from UniProt, with hand-checked '
-        "entries marked, and sequences from NCBI RefSeq.</p></div>"
-        '<div class="feature"><h4>Real and predicted 3D</h4><p>Lab-solved structures from the Protein '
-        "Data Bank, plus AlphaFold predictions for almost every protein.</p></div>"
-        '<div class="feature"><h4>Evolution at a glance</h4><p>Line up a protein across species, '
-        "build a family tree and color the 3D model by what never changes.</p></div>"
-        "</div>",
+        "<span>NCBI</span><span>STRING</span><span>Complex Portal</span></div></div>",
         unsafe_allow_html=True,
     )
