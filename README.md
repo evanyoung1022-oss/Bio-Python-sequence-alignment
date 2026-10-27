@@ -38,6 +38,10 @@ Each box is a dropdown with suggestions (about 140 common genes, everyday protei
 
 A **Dark mode** switch at the top of the sidebar repaints the whole app, including the charts and the 3D viewer.
 
+| Typing "insul" into the gene box | Dark mode |
+|---|---|
+| ![Search dropdown filtering to INS and IGF1](docs/screenshots/search-dropdown.png) | ![Hemoglobin in dark mode](docs/screenshots/dark-mode.png) |
+
 ## The protein page
 
 | Section | What you get |
